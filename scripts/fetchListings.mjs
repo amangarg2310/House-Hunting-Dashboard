@@ -271,6 +271,14 @@ async function fetchPropertiesFromAPI() {
     'Kennesaw, GA',
     'Decatur, GA',
     'Suwanee, GA',
+    'Midtown, GA',
+    'Virginia-Highland, GA',
+    'Inman Park, GA',
+    'Old Fourth Ward, GA',
+    'Brookhaven, GA',
+    'Druid Hills, GA',
+    'Grant Park, GA',
+    'East Atlanta, GA',
   ];
 
   // Listing types to fetch

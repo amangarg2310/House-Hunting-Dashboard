@@ -7,7 +7,7 @@ interface FilterSidebarProps {
   onClearFilters: () => void;
   compareMode: CompareMode;
 }
-const COUNTIES = ['Atlanta', 'Alpharetta', 'Roswell', 'Johns Creek', 'Sandy Springs', 'Cumming', 'Buckhead', 'Vinings', 'Dunwoody', 'Marietta', 'Smyrna', 'Athens', 'Gainesville', 'Forsyth', 'Canton', 'Milton', 'Duluth', 'Kennesaw', 'Decatur', 'Suwanee'];
+const COUNTIES = ['Atlanta', 'Alpharetta', 'Roswell', 'Johns Creek', 'Sandy Springs', 'Cumming', 'Buckhead', 'Vinings', 'Dunwoody', 'Marietta', 'Smyrna', 'Athens', 'Gainesville', 'Forsyth', 'Canton', 'Milton', 'Duluth', 'Kennesaw', 'Decatur', 'Suwanee', 'Midtown', 'Virginia-Highland', 'Inman Park', 'Old Fourth Ward', 'Brookhaven', 'Druid Hills', 'Grant Park', 'East Atlanta'];
 const PROPERTY_TYPES = [{
   value: 'ranch' as const,
   label: 'Ranch',
