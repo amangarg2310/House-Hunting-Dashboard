@@ -184,9 +184,10 @@ export function useListings() {
         case 'price-high':
           return bPrice - aPrice;
         case 'newest':
-          const aDate = a.listedDate ? new Date(a.listedDate).getTime() : 0;
-          const bDate = b.listedDate ? new Date(b.listedDate).getTime() : 0;
-          return bDate - aDate;
+          // Sort by daysOnMarket: lower days = newer = first
+          const aDays = a.daysOnMarket ?? Infinity;
+          const bDays = b.daysOnMarket ?? Infinity;
+          return aDays - bDays;
         default:
           return 0;
       }
