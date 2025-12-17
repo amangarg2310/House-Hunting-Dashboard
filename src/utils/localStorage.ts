@@ -39,6 +39,20 @@ export function updateLastReviewDate(): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 export function exportToCSV(listings: Listing[]): void {
+  // CRITICAL: Only export A & B tier properties
+  const topTierListings = listings.filter(l => {
+    const grade = l.grade;
+    console.log(`Listing ${l.id}: grade=${grade}, isAorB=${grade === 'A' || grade === 'B'}`);
+    return grade === 'A' || grade === 'B';
+  });
+
+  console.log(`Exporting ${topTierListings.length} A/B tier properties out of ${listings.length} total`);
+
+  if (topTierListings.length === 0) {
+    alert('No A or B tier properties to export. Please grade some properties first!');
+    return;
+  }
+
   const headers = [
     'Grade',
     'Address',
@@ -58,8 +72,8 @@ export function exportToCSV(listings: Listing[]): void {
     'Listing URL'
   ];
 
-  const rows = listings.map(l => {
-    return [
+  const rows = topTierListings.map(l => {
+    const row = [
       l.grade || 'Ungraded',
       `"${l.address}"`, // Quoted to handle commas in address
       l.county,
@@ -77,6 +91,13 @@ export function exportToCSV(listings: Listing[]): void {
       l.schoolRating || 0,
       `"${l.url || 'N/A'}"` // Quoted URL
     ];
+
+    // Debug: log first row to verify structure
+    if (topTierListings.indexOf(l) === 0) {
+      console.log('First row values:', row);
+    }
+
+    return row;
   });
 
   const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');

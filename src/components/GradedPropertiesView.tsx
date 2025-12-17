@@ -43,9 +43,8 @@ export function GradedPropertiesView({
 }: GradedPropertiesViewProps) {
   const gradedListings = listings.filter(l => l.grade);
   const handleExport = () => {
-    // Only export A & B tier properties for visiting
-    const topTierListings = gradedListings.filter(l => l.grade === 'A' || l.grade === 'B');
-    exportToCSV(topTierListings);
+    // exportToCSV will filter to only A & B tier internally
+    exportToCSV(gradedListings);
   };
   if (gradedListings.length === 0) {
     return <div className="flex items-center justify-center h-full">
