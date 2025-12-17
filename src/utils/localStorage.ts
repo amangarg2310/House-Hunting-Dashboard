@@ -61,21 +61,21 @@ export function exportToCSV(listings: Listing[]): void {
   const rows = listings.map(l => {
     return [
       l.grade || 'Ungraded',
-      `"${l.address}"`, // Quoted to handle commas
+      `"${l.address}"`, // Quoted to handle commas in address
       l.county,
-      l.estimatedPrice ? `$${l.estimatedPrice.toLocaleString()}` : 'N/A',
+      l.estimatedPrice || 0, // Plain number for Excel
       l.bedrooms || 0,
       l.bathrooms || 0,
-      l.squareFootage || 'N/A',
-      l.pricePerSqFt ? `$${l.pricePerSqFt}` : 'N/A',
-      l.yearBuilt || 'N/A',
+      l.squareFootage || 0,
+      l.pricePerSqFt || 0, // Plain number for Excel
+      l.yearBuilt || 0,
       l.propertyType,
       l.hasBackyard ? 'Yes' : 'No',
       l.hasPool ? 'Yes' : 'No',
-      l.daysOnMarket !== undefined && l.daysOnMarket !== null ? l.daysOnMarket : 'N/A',
-      l.hoaFees ? `$${l.hoaFees}` : 'N/A',
-      l.schoolRating || 'N/A',
-      l.url || 'N/A'
+      l.daysOnMarket !== undefined && l.daysOnMarket !== null ? l.daysOnMarket : 0,
+      l.hoaFees || 0, // Plain number for Excel
+      l.schoolRating || 0,
+      `"${l.url || 'N/A'}"` // Quoted URL
     ];
   });
 
