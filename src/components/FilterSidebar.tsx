@@ -7,7 +7,7 @@ interface FilterSidebarProps {
   onClearFilters: () => void;
   compareMode: CompareMode;
 }
-const COUNTIES = ['Atlanta', 'Alpharetta', 'Roswell', 'Johns Creek', 'Sandy Springs', 'Cumming', 'Buckhead', 'Vinings', 'Dunwoody', 'Marietta', 'Smyrna', 'Athens', 'Gainesville'];
+const COUNTIES = ['Atlanta', 'Alpharetta', 'Roswell', 'Johns Creek', 'Sandy Springs', 'Cumming', 'Buckhead', 'Vinings', 'Dunwoody', 'Marietta', 'Smyrna', 'Athens', 'Gainesville', 'Forsyth', 'Canton', 'Milton'];
 const PROPERTY_TYPES = [{
   value: 'ranch' as const,
   label: 'Ranch',

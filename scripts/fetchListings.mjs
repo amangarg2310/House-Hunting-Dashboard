@@ -264,6 +264,9 @@ async function fetchPropertiesFromAPI() {
     'Smyrna, GA',
     'Athens, GA',
     'Gainesville, GA',
+    'Forsyth, GA',
+    'Canton, GA',
+    'Milton, GA',
   ];
 
   // Listing types to fetch
