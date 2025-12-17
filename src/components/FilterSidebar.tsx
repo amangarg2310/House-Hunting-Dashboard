@@ -84,6 +84,8 @@ export function FilterSidebar({
             <option value="30">Past 30 Days</option>
             <option value="60">Past 60 Days</option>
             <option value="90">Past 90 Days</option>
+            <option value="180">Past 6 Months</option>
+            <option value="365">Past Year</option>
           </select>
         </div>
 
