@@ -267,6 +267,10 @@ async function fetchPropertiesFromAPI() {
     'Forsyth, GA',
     'Canton, GA',
     'Milton, GA',
+    'Duluth, GA',
+    'Kennesaw, GA',
+    'Decatur, GA',
+    'Suwanee, GA',
   ];
 
   // Listing types to fetch
