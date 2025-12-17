@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(VITE_SUPABASE_URL=https://ohyyrmpbzaecfwuplgwm.supabase.co VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeXlybXBiemFlY2Z3dXBsZ3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4NTU0MjIsImV4cCI6MjA4MTQzMTQyMn0.vDcKFSCRu8GPbJjeKafrq8oABkT3i8FTKAAeUdzVfhA node -c \"\nimport { createClient } from ''@supabase/supabase-js'';\nconst supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);\nconst { count } = await supabase.from(''listings'').select(''*'', { count: ''exact'', head: true });\nconsole.log(''Actual DB count:'', count);\n\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
