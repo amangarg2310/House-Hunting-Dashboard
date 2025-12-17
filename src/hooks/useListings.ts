@@ -133,12 +133,9 @@ export function useListings() {
         return false;
       }
 
-      // Days listed filter
-      if (filters.maxDaysListed !== null && listing.listedDate) {
-        const now = new Date();
-        const listedDate = new Date(listing.listedDate);
-        const daysSinceListed = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysSinceListed > filters.maxDaysListed) {
+      // Days listed filter - use daysOnMarket field
+      if (filters.maxDaysListed !== null && listing.daysOnMarket !== undefined) {
+        if (listing.daysOnMarket > filters.maxDaysListed) {
           return false;
         }
       }
