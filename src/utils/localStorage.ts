@@ -39,8 +39,44 @@ export function updateLastReviewDate(): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 export function exportToCSV(listings: Listing[]): void {
-  const headers = ['Address', 'County', 'Property Type', 'Grade', 'Price', 'Price/Sq Ft', 'Bedrooms', 'Bathrooms', 'Sq Ft', 'Year Built', 'Backyard', 'Pool', 'Contract Status', 'Walk Score', 'School Rating', 'Value Score'];
-  const rows = listings.map(l => [l.address, l.county, l.propertyType, l.grade || 'Ungraded', l.estimatedPrice, l.pricePerSqFt, l.bedrooms, l.bathrooms, l.squareFootage, l.yearBuilt, l.hasBackyard ? 'Yes' : 'No', l.hasPool ? 'Yes' : 'No', l.contractStatus, l.walkScore, l.schoolRating, l.valueScore || 0]);
+  const headers = [
+    'Address',
+    'County',
+    'Property Type',
+    'Grade',
+    'Price',
+    'Price/Sq Ft',
+    'Bedrooms',
+    'Bathrooms',
+    'Sq Ft',
+    'Year Built',
+    'Backyard',
+    'Pool',
+    'Days Listed',
+    'HOA',
+    'School Rating',
+    'Value Score'
+  ];
+
+  const rows = listings.map(l => [
+    `"${l.address}"`, // Quoted to handle commas in address
+    l.county,
+    l.propertyType,
+    l.grade || 'Ungraded',
+    `$${l.estimatedPrice?.toLocaleString() || 0}`,
+    `$${l.pricePerSqFt || 0}`,
+    l.bedrooms,
+    l.bathrooms,
+    l.squareFootage || 'N/A',
+    l.yearBuilt || 'N/A',
+    l.hasBackyard ? 'Yes' : 'No',
+    l.hasPool ? 'Yes' : 'No',
+    l.daysOnMarket || 'N/A',
+    l.hoaFees ? `$${l.hoaFees}/mo` : 'N/A',
+    l.schoolRating || 'N/A',
+    l.valueScore || 0
+  ]);
+
   const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
   const blob = new Blob([csv], {
     type: 'text/csv'
@@ -48,7 +84,7 @@ export function exportToCSV(listings: Listing[]): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `house-hunting-${new Date().toISOString().split('T')[0]}.csv`;
+  a.download = `house-hunting-A-B-tier-${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
