@@ -29,8 +29,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_RAPIDAPI_KEY: ${{ secrets.VITE_RAPIDAPI_KEY }}
-          VITE_RAPIDAPI_HOST: ${{ secrets.VITE_RAPIDAPI_HOST }}
+          VITE_HASDATA_API_KEY: ${{ secrets.VITE_HASDATA_API_KEY }}
         run: npm run fetch-listings
 
       - name: Notify on failure
