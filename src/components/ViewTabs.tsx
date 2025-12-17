@@ -21,9 +21,6 @@ export function ViewTabs({
             <div className="flex items-center gap-2">
               <SparkleIcon className="w-4 h-4" />
               <span>New Today</span>
-              {newCount > 0 && <span className="bg-purple-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                  {newCount}
-                </span>}
             </div>
             {currentView === 'new-today' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
           </button>
