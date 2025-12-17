@@ -5,10 +5,14 @@
  * and saves them to Supabase. It's designed to run daily at 7 AM via GitHub Actions.
  *
  * Usage: node scripts/fetchListings.js
+ *
+ * Environment variables required:
+ * - VITE_SUPABASE_URL
+ * - VITE_SUPABASE_ANON_KEY
+ * - VITE_HASDATA_API_KEY
  */
 
 import { createClient } from '@supabase/supabase-js';
-import 'dotenv/config';
 
 // Configuration
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
