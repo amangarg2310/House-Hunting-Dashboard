@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Listing, FilterState, CompareMode } from '../types/listing';
 import { fetchAllListings } from '../lib/listings';
-import { saveGrade, removeGrade, fetchAllGrades } from '../lib/grades';
+import { saveGrade, removeGrade, fetchAllGrades, clearAllGrades } from '../lib/grades';
 import { mockListings } from '../utils/mockData';
 
 // Check if we're in demo mode (no real API credentials)
@@ -323,6 +323,32 @@ export function useListings() {
     }
   };
 
+  // Reset all grades
+  const resetAllGrades = async () => {
+    if (!confirm('Are you sure you want to reset ALL grades? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (DEMO_MODE) {
+        // Demo mode: clear localStorage
+        localStorage.removeItem('demo_grades');
+        setGrades(new Map());
+      } else {
+        // Production mode: clear all grades from Supabase
+        await clearAllGrades();
+        setGrades(new Map());
+      }
+    } catch (err) {
+      console.error('Error resetting all grades:', err);
+      alert('Failed to reset all grades. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     listings: filteredListings,
     allListings: listingsWithGrades,
@@ -337,6 +363,7 @@ export function useListings() {
     gradedCounts,
     loading,
     error,
-    refresh
+    refresh,
+    resetAllGrades
   };
 }

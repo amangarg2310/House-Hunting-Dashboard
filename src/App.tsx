@@ -19,7 +19,8 @@ export function App() {
     toggleSingleFloor,
     gradedCounts,
     loading,
-    error
+    error,
+    resetAllGrades
   } = useListings();
   const [currentView, setCurrentView] = useState<ViewMode>('new-today');
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export function App() {
         {/* View Content */}
         {currentView === 'new-today' && <NewTodayView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} />}
 
-        {currentView === 'my-grades' && <GradedPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} />}
+        {currentView === 'my-grades' && <GradedPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} onResetAllGrades={resetAllGrades} />}
 
         {currentView === 'all-properties' && <AllPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} />}
       </div>

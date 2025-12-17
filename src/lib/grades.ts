@@ -130,3 +130,23 @@ export async function getGradeCounts(): Promise<Record<'A' | 'B' | 'C' | 'D' | '
     return { A: 0, B: 0, C: 0, D: 0, F: 0 };
   }
 }
+
+/**
+ * Clear all grades from the database
+ */
+export async function clearAllGrades(): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('grades')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
+
+    if (error) {
+      console.error('Error clearing all grades:', error);
+      throw new Error(`Failed to clear all grades: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in clearAllGrades:', error);
+    throw error;
+  }
+}

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Listing } from '../types/listing';
 import { ListingCard } from './ListingCard';
-import { DownloadIcon } from 'lucide-react';
+import { DownloadIcon, RotateCcwIcon } from 'lucide-react';
 import { exportToCSV } from '../utils/localStorage';
 interface GradedPropertiesViewProps {
   listings: Listing[];
   onAssignGrade: (listingId: string, grade: 'A' | 'B' | 'C' | 'D' | 'F') => void;
   compareMode: 'buy' | 'rent' | 'both';
+  onResetAllGrades?: () => void;
 }
 const GRADE_TIERS = [{
   grade: 'A' as const,
@@ -37,7 +38,8 @@ const GRADE_TIERS = [{
 export function GradedPropertiesView({
   listings,
   onAssignGrade,
-  compareMode
+  compareMode,
+  onResetAllGrades
 }: GradedPropertiesViewProps) {
   const gradedListings = listings.filter(l => l.grade);
   const handleExport = () => {
@@ -65,10 +67,16 @@ export function GradedPropertiesView({
               {gradedListings.length} properties organized by grade
             </p>
           </div>
-          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors">
-            <DownloadIcon className="w-4 h-4" />
-            Export to CSV
-          </button>
+          <div className="flex gap-2">
+            {onResetAllGrades && <button onClick={onResetAllGrades} className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+              <RotateCcwIcon className="w-4 h-4" />
+              Reset All Grades
+            </button>}
+            <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors">
+              <DownloadIcon className="w-4 h-4" />
+              Export to CSV
+            </button>
+          </div>
         </div>
       </div>
 
