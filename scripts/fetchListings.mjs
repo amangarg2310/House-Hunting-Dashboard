@@ -280,64 +280,31 @@ async function fetchPropertiesFromAPI() {
 
   try {
     // Fetch properties for each area and listing type
-    // We'll fetch with different amenity filters and merge results
+    // OPTIMIZED: Only one API call per city/type combo (40 calls total instead of 80)
     for (const city of premiumAreas) {
       for (const type of listingTypes) {
-        // Fetch 1: All single-story properties (no pool requirement)
-        console.log(`  Searching ${city} (${type}) - single story...`);
+        console.log(`  Searching ${city} (${type})...`);
         try {
           const properties = await fetchFromHasData(city, type);
           console.log(`    ✓ Found ${properties.length} single-story properties`);
 
-          // Mark all as not having pool by default
-          properties.forEach(prop => prop._hasPool = false);
+          // Note: Pool info not reliably available from API, will default to false
           allListings.push(...properties);
 
+          // Rate limit: 1 second between requests
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (cityError) {
           console.error(`    ✗ Error:`, cityError.message);
-        }
-
-        // Fetch 2: Single-story properties WITH pool
-        console.log(`  Searching ${city} (${type}) - single story WITH pool...`);
-        try {
-          const url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(city)}&type=${type}&singleStoryOnly=true&otherAmenities=pool`;
-
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': HASDATA_API_KEY
-            }
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            const poolProps = result.properties || [];
-            console.log(`    ✓ Found ${poolProps.length} single-story properties WITH pool`);
-
-            // Mark these as having pool
-            poolProps.forEach(prop => prop._hasPool = true);
-
-            // Add to list (deduplication will happen later)
-            allListings.push(...poolProps);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (poolError) {
-          console.log(`    ⚠️  Pool filter not available`);
         }
       }
     }
 
     console.log(`✅ Total fetched (with duplicates): ${allListings.length} properties`);
 
-    // Deduplicate by ID, keeping the version with pool info if available
+    // Deduplicate by ID
     const propertyMap = new Map();
     allListings.forEach(prop => {
-      const existing = propertyMap.get(prop.id);
-      if (!existing || prop._hasPool) {
-        // Keep this one if we don't have it yet, or if this version has pool info
+      if (!propertyMap.has(prop.id)) {
         propertyMap.set(prop.id, prop);
       }
     });
@@ -347,17 +314,10 @@ async function fetchPropertiesFromAPI() {
 
     // Transform and filter properties
     const listings = uniqueProperties
-      .map(prop => {
-        const listing = transformProperty(prop);
-        if (listing) {
-          listing.has_pool = prop._hasPool || false;
-        }
-        return listing;
-      })
+      .map(prop => transformProperty(prop))
       .filter(Boolean); // Remove null entries
 
-    const withPool = listings.filter(l => l.has_pool).length;
-    console.log(`✅ ${listings.length} valid properties (${withPool} with pools)`);
+    console.log(`✅ ${listings.length} valid properties after filtering`);
 
     return listings;
   } catch (error) {
