@@ -145,7 +145,7 @@ export function ListingCard({
           <div className="flex items-center gap-1.5">
             <HomeIcon className="w-4 h-4 text-gray-400" />
             <span className="text-sm font-medium text-gray-900">
-              {(listing.squareFootage / 1000).toFixed(1)}k
+              {listing.squareFootage.toLocaleString()} sq ft
             </span>
           </div>
         </div>
