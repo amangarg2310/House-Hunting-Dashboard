@@ -7,7 +7,7 @@ interface FilterSidebarProps {
   onClearFilters: () => void;
   compareMode: CompareMode;
 }
-const COUNTIES = ['Alpharetta', 'Roswell', 'Johns Creek', 'Sandy Springs', 'Cumming', 'Buckhead', 'Vinings', 'Dunwoody', 'Marietta'];
+const COUNTIES = ['Atlanta', 'Alpharetta', 'Roswell', 'Johns Creek', 'Sandy Springs', 'Cumming', 'Buckhead', 'Vinings', 'Dunwoody', 'Marietta', 'Smyrna', 'Athens', 'Gainesville'];
 const PROPERTY_TYPES = [{
   value: 'ranch' as const,
   label: 'Ranch',
@@ -209,10 +209,10 @@ export function FilterSidebar({
           </div>
         </div>}
 
-        {/* Counties */}
+        {/* Cities */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">
-            Counties
+            Cities
           </label>
           <div className="space-y-2">
             {COUNTIES.map(county => <label key={county} className="flex items-center gap-2 cursor-pointer">
