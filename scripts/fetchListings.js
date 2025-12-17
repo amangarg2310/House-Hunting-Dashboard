@@ -247,6 +247,7 @@ async function fetchPropertiesFromAPI() {
 
   // Premium Atlanta areas to search
   const premiumAreas = [
+    'Atlanta, GA',
     'Alpharetta, GA',
     'Roswell, GA',
     'Johns Creek, GA',
@@ -256,6 +257,9 @@ async function fetchPropertiesFromAPI() {
     'Vinings, GA',
     'Dunwoody, GA',
     'Marietta, GA',
+    'Smyrna, GA',
+    'Athens, GA',
+    'Gainesville, GA',
   ];
 
   // Listing types to fetch
@@ -390,13 +394,13 @@ async function saveListingsToDatabase(listings) {
 }
 
 /**
- * Clean up old listings (older than 90 days)
+ * Clean up old listings (older than 1 year to keep historical data)
  */
 async function cleanupOldListings() {
   console.log('🧹 Cleaning up old listings...');
 
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - 90);
+  cutoffDate.setDate(cutoffDate.getDate() - 365); // Changed from 90 to 365 days
 
   try {
     const { data, error } = await supabase
@@ -411,7 +415,7 @@ async function cleanupOldListings() {
     }
 
     const deletedCount = data?.length || 0;
-    console.log(`✅ Deleted ${deletedCount} old listings`);
+    console.log(`✅ Deleted ${deletedCount} old listings (older than 1 year)`);
     return deletedCount;
   } catch (error) {
     console.error('❌ Cleanup error:', error);
