@@ -157,7 +157,7 @@ export function ListingCard({
             <div>
               <div className="text-xs text-gray-500">HOA</div>
               <span className="text-sm font-medium text-gray-900">
-                ${listing.hoaFees}/mo
+                {listing.hoaFees ? `$${listing.hoaFees}/mo` : 'N/A'}
               </span>
             </div>
           </div>
