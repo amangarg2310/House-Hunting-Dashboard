@@ -40,42 +40,44 @@ export function updateLastReviewDate(): void {
 }
 export function exportToCSV(listings: Listing[]): void {
   const headers = [
-    'Address',
-    'County',
-    'Property Type',
     'Grade',
+    'Address',
+    'City',
     'Price',
-    'Price/Sq Ft',
     'Bedrooms',
     'Bathrooms',
     'Sq Ft',
+    'Price/Sq Ft',
     'Year Built',
+    'Property Type',
     'Backyard',
     'Pool',
     'Days Listed',
-    'HOA',
+    'HOA/Month',
     'School Rating',
-    'Value Score'
+    'Listing URL'
   ];
 
-  const rows = listings.map(l => [
-    `"${l.address}"`, // Quoted to handle commas in address
-    l.county,
-    l.propertyType,
-    l.grade || 'Ungraded',
-    `$${l.estimatedPrice?.toLocaleString() || 0}`,
-    `$${l.pricePerSqFt || 0}`,
-    l.bedrooms,
-    l.bathrooms,
-    l.squareFootage || 'N/A',
-    l.yearBuilt || 'N/A',
-    l.hasBackyard ? 'Yes' : 'No',
-    l.hasPool ? 'Yes' : 'No',
-    l.daysOnMarket || 'N/A',
-    l.hoaFees ? `$${l.hoaFees}/mo` : 'N/A',
-    l.schoolRating || 'N/A',
-    l.valueScore || 0
-  ]);
+  const rows = listings.map(l => {
+    return [
+      l.grade || 'Ungraded',
+      `"${l.address}"`, // Quoted to handle commas
+      l.county,
+      l.estimatedPrice ? `$${l.estimatedPrice.toLocaleString()}` : 'N/A',
+      l.bedrooms || 0,
+      l.bathrooms || 0,
+      l.squareFootage || 'N/A',
+      l.pricePerSqFt ? `$${l.pricePerSqFt}` : 'N/A',
+      l.yearBuilt || 'N/A',
+      l.propertyType,
+      l.hasBackyard ? 'Yes' : 'No',
+      l.hasPool ? 'Yes' : 'No',
+      l.daysOnMarket !== undefined && l.daysOnMarket !== null ? l.daysOnMarket : 'N/A',
+      l.hoaFees ? `$${l.hoaFees}` : 'N/A',
+      l.schoolRating || 'N/A',
+      l.url || 'N/A'
+    ];
+  });
 
   const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
   const blob = new Blob([csv], {
