@@ -240,11 +240,21 @@ async function fetchFromHasData(location, type, otherAmenities = null) {
   }
 
   const result = await response.json();
-  const properties = result.properties || [];
+  const allProperties = result.properties || [];
+
+  // Filter by price range ($650k-$2M) since API doesn't support price filtering
+  const MIN_PRICE = 650000;
+  const MAX_PRICE = 2000000;
+  const properties = allProperties.filter(prop => {
+    const price = prop.price || 0;
+    return price >= MIN_PRICE && price <= MAX_PRICE;
+  });
+
+  console.log(`    ✓ Found ${properties.length} properties in $${(MIN_PRICE/1000).toFixed(0)}k-$${(MAX_PRICE/1000000).toFixed(1)}M range (filtered from ${allProperties.length} total)`);
 
   // Log if we're hitting the API limit (usually ~40 results)
-  if (properties.length >= 40) {
-    console.log(`    ⚠️  Hit API limit (${properties.length} results) - some listings may be missing`);
+  if (allProperties.length >= 40) {
+    console.log(`    ⚠️  Hit API limit (${allProperties.length} results) - some listings may be missing`);
   }
 
   return properties;
@@ -302,7 +312,6 @@ async function fetchPropertiesFromAPI() {
         console.log(`  Searching ${city} (${type})...`);
         try {
           const properties = await fetchFromHasData(city, type);
-          console.log(`    ✓ Found ${properties.length} single-story properties`);
 
           // Note: Pool info not reliably available from API, will default to false
           allListings.push(...properties);
