@@ -150,8 +150,6 @@ export function FilterSidebar({
               <span className="text-sm font-bold text-gray-900">
                 {filters.priceRange[0] >= 1000000
                   ? `$${(filters.priceRange[0] / 1000000).toFixed(1)}M`
-                  : filters.priceRange[0] === 0
-                  ? '$0'
                   : `$${(filters.priceRange[0] / 1000).toFixed(0)}k`
                 }
               </span>
@@ -201,7 +199,7 @@ export function FilterSidebar({
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold text-gray-900">
-                ${filters.rentPriceRange[0] === 0 ? '0' : filters.rentPriceRange[0].toLocaleString()}/mo
+                ${filters.rentPriceRange[0].toLocaleString()}/mo
               </span>
               <span className="text-xs text-gray-500">to</span>
               <span className="text-sm font-bold text-gray-900">
