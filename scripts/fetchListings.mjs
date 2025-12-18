@@ -218,7 +218,8 @@ function transformProperty(prop) {
  * Fetch properties from HasData Zillow API for a specific location and type
  */
 async function fetchFromHasData(location, type, otherAmenities = null) {
-  let url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
+  // Sort by days on market (newest first) to prioritize recent listings
+  let url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true&sort=days`;
 
   // Add other amenities filter if specified (e.g., pool)
   if (otherAmenities) {
@@ -239,7 +240,14 @@ async function fetchFromHasData(location, type, otherAmenities = null) {
   }
 
   const result = await response.json();
-  return result.properties || [];
+  const properties = result.properties || [];
+
+  // Log if we're hitting the API limit (usually ~40 results)
+  if (properties.length >= 40) {
+    console.log(`    ⚠️  Hit API limit (${properties.length} results) - some listings may be missing`);
+  }
+
+  return properties;
 }
 
 /**
@@ -320,12 +328,25 @@ async function fetchPropertiesFromAPI() {
     const uniqueProperties = Array.from(propertyMap.values());
     console.log(`✅ After deduplication: ${uniqueProperties.length} unique properties`);
 
-    // Transform and filter properties
+    // Transform and filter properties with detailed logging
+    let filteredOut = 0;
     const listings = uniqueProperties
-      .map(prop => transformProperty(prop))
+      .map(prop => {
+        const transformed = transformProperty(prop);
+        if (!transformed) {
+          filteredOut++;
+          // Log why specific properties were filtered out (for debugging)
+          if (prop.address && prop.address.street && prop.address.street.includes('Creekside')) {
+            console.log(`⚠️  FILTERED OUT: ${prop.address.street}, ${prop.address.city || 'Unknown'}`);
+            console.log(`   Reason: homeType=${prop.homeType}, status=${prop.status}, price=${prop.price}`);
+          }
+        }
+        return transformed;
+      })
       .filter(Boolean); // Remove null entries
 
     console.log(`✅ ${listings.length} valid properties after filtering`);
+    console.log(`   ${filteredOut} properties filtered out (pending/sold/invalid/multi-family)`);
 
     return listings;
   } catch (error) {
