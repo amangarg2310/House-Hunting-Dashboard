@@ -1,0 +1,6 @@
+{
+  "crons": [{
+    "path": "/api/cron/fetch-listings",
+    "schedule": "0 12 * * *"
+  }]
+}

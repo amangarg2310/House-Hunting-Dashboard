@@ -71,8 +71,8 @@ function transformProperty(prop) {
     return null;
   }
 
-  // Use city as county (since we're searching by premium areas)
-  const countyName = address.city || address.state || 'Atlanta';
+  // Use search city as county (this preserves neighborhood names like "Brookhaven", "Midtown", etc.)
+  const countyName = prop._searchCity || address.city || address.state || 'Atlanta';
 
   // Determine property type from homeType
   const homeType = (prop.homeType || '').toUpperCase();
@@ -273,7 +273,9 @@ async function fetchFromHasData(location, type, otherAmenities = null) {
     console.log(`    ⚠️  Hit API limit (${allProperties.length} results) - some listings may be missing`);
   }
 
-  return properties;
+  // Add search location to each property so we can use it as the county
+  const searchCity = location.split(',')[0].trim(); // Extract "Brookhaven" from "Brookhaven, GA"
+  return properties.map(prop => ({ ...prop, _searchCity: searchCity }));
 }
 
 /**
