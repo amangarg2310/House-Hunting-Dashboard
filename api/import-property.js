@@ -1,21 +1,9 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
 /**
  * API endpoint for manually importing properties by URL or address
  * Accepts single property or batch of properties
  */
-
-interface ImportRequest {
-  entries: string[]; // Array of URLs or addresses
-}
-
-interface ImportResult {
-  success: boolean;
-  entry: string;
-  address?: string;
-  error?: string;
-}
 
 /**
  * Extract property ID from Zillow URL
@@ -204,10 +192,7 @@ function transformProperty(prop: any) {
   return listing;
 }
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+module.exports = async function handler(req, res) {
   // Only allow POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -222,14 +207,14 @@ export default async function handler(
       throw new Error('Missing required environment variables');
     }
 
-    const { entries }: ImportRequest = req.body;
+    const { entries } = req.body;
 
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
       return res.status(400).json({ error: 'entries array is required' });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const results: ImportResult[] = [];
+    const results = [];
 
     // Process each entry
     for (const entry of entries) {
@@ -301,7 +286,7 @@ export default async function handler(
 
         // Rate limit: 300ms between requests
         await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (error: any) {
+      } catch (error) {
         results.push({
           success: false,
           entry: trimmedEntry,
