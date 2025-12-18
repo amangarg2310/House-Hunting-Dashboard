@@ -37,6 +37,7 @@ function dbRowToListing(row: any): Listing {
     valueScore: row.value_score,
     valueTier: row.value_tier as Listing['valueTier'],
     listedDate: row.listed_date,
+    createdAt: row.created_at,
     daysOnMarket: row.days_on_market,
   };
 
