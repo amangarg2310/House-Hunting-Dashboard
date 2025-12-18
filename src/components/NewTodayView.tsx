@@ -12,14 +12,14 @@ export function NewTodayView({
   onAssignGrade,
   compareMode
 }: NewTodayViewProps) {
-  // Filter listings from last 24 hours based on listedDate
+  // Filter listings added to database in last 24 hours based on createdAt
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const newListings = listings.filter(l => {
-    if (!l.listedDate) return l.isNew; // Fallback to isNew flag if no date
-    const listedDate = new Date(l.listedDate);
-    return listedDate >= yesterday;
+    if (!l.createdAt) return false; // Skip if no created date
+    const createdDate = new Date(l.createdAt);
+    return createdDate >= yesterday;
   });
 
   const ungradedNew = newListings.filter(l => !l.grade);

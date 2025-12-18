@@ -18,6 +18,7 @@ export interface Listing {
   grade?: 'A' | 'B' | 'C' | 'D' | 'F';
   isNew?: boolean;
   listedDate?: string; // ISO date string for when the listing was added
+  createdAt?: string; // ISO date string for when added to our database
   daysOnMarket?: number; // Days the listing has been on Zillow
   photoUrl?: string;
   photoUrls?: string[];
