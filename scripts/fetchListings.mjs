@@ -242,15 +242,31 @@ async function fetchFromHasData(location, type, otherAmenities = null) {
   const result = await response.json();
   const allProperties = result.properties || [];
 
-  // Filter by price range ($650k-$2M) since API doesn't support price filtering
-  const MIN_PRICE = 650000;
-  const MAX_PRICE = 2000000;
+  // Filter by price range since API doesn't support price filtering
+  // For Sale: $650k-$2M | For Rent: $3k-$10k/month
+  let MIN_PRICE, MAX_PRICE, priceLabel;
+
+  if (type === 'forSale') {
+    MIN_PRICE = 650000;
+    MAX_PRICE = 2000000;
+    priceLabel = `$${(MIN_PRICE/1000).toFixed(0)}k-$${(MAX_PRICE/1000000).toFixed(1)}M`;
+  } else if (type === 'forRent') {
+    MIN_PRICE = 3000;
+    MAX_PRICE = 10000;
+    priceLabel = `$${(MIN_PRICE/1000).toFixed(0)}k-$${(MAX_PRICE/1000).toFixed(0)}k/mo`;
+  } else {
+    // Default (shouldn't happen, but just in case)
+    MIN_PRICE = 0;
+    MAX_PRICE = Infinity;
+    priceLabel = 'all prices';
+  }
+
   const properties = allProperties.filter(prop => {
     const price = prop.price || 0;
     return price >= MIN_PRICE && price <= MAX_PRICE;
   });
 
-  console.log(`    ✓ Found ${properties.length} properties in $${(MIN_PRICE/1000).toFixed(0)}k-$${(MAX_PRICE/1000000).toFixed(1)}M range (filtered from ${allProperties.length} total)`);
+  console.log(`    ✓ Found ${properties.length} properties in ${priceLabel} range (filtered from ${allProperties.length} total)`);
 
   // Log if we're hitting the API limit (usually ~40 results)
   if (allProperties.length >= 40) {
