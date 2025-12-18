@@ -8,7 +8,8 @@
     "build": "npx vite build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "npx vite preview",
-    "fetch-listings": "node scripts/fetchListings.mjs"
+    "fetch-listings": "node scripts/fetchListings.mjs",
+    "fetch-enhanced": "node scripts/fetchListings-enhanced.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

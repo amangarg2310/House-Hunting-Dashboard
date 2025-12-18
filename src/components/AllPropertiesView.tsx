@@ -6,12 +6,14 @@ interface AllPropertiesViewProps {
   listings: Listing[];
   onAssignGrade: (listingId: string, grade: 'A' | 'B' | 'C' | 'D' | 'F') => void;
   compareMode: 'buy' | 'rent' | 'both';
+  onCompareModeChange: (mode: 'buy' | 'rent' | 'both') => void;
 }
 type HistoricalFilter = 'all' | 'graded' | 'ungraded';
 export function AllPropertiesView({
   listings,
   onAssignGrade,
-  compareMode
+  compareMode,
+  onCompareModeChange
 }: AllPropertiesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [historicalFilter, setHistoricalFilter] = useState<HistoricalFilter>('all');
@@ -53,8 +55,24 @@ export function AllPropertiesView({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          <span>Showing {filteredListings.length} properties</span>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">Showing {filteredListings.length} properties</span>
+
+          {/* Buy/Rent/Both Toggle */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">View:</span>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+              <button onClick={() => onCompareModeChange('buy')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${compareMode === 'buy' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+                Buy
+              </button>
+              <button onClick={() => onCompareModeChange('rent')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${compareMode === 'rent' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+                Rent
+              </button>
+              <button onClick={() => onCompareModeChange('both')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${compareMode === 'both' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+                Both
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -96,7 +96,7 @@ export function App() {
 
         {currentView === 'my-grades' && <GradedPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} onResetAllGrades={resetAllGrades} />}
 
-        {currentView === 'all-properties' && <AllPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} />}
+        {currentView === 'all-properties' && <AllPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} onCompareModeChange={setCompareMode} />}
       </div>
     </div>;
 }

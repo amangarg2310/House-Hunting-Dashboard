@@ -88,34 +88,68 @@ export function ListingCard({
 
         {/* Pricing */}
         <div className="mb-3 pb-3 border-b border-gray-100">
-          {compareMode === 'both' && hasBothPrices ? <div className="grid grid-cols-2 gap-3">
-              <div className="bg-blue-50 rounded-lg p-2">
-                <div className="text-xs text-blue-600 font-medium mb-1">
-                  Buy
+          {compareMode === 'both' ? (
+            // Both mode: check listing type to show appropriate price
+            listing.listingType === 'both' ? (
+              // Property available for both sale and rent - show both prices
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-50 rounded-lg p-2">
+                  <div className="text-xs text-blue-600 font-medium mb-1">
+                    Buy
+                  </div>
+                  <div className="text-lg font-bold text-blue-900">
+                    ${listing.estimatedPrice >= 1000000
+                      ? `${(listing.estimatedPrice / 1000000).toFixed(1)}M`
+                      : `${(listing.estimatedPrice / 1000).toFixed(0)}k`
+                    }
+                  </div>
                 </div>
-                <div className="text-lg font-bold text-blue-900">
+                {listing.monthlyRent && <div className="bg-green-50 rounded-lg p-2">
+                    <div className="text-xs text-green-600 font-medium mb-1">
+                      Rent
+                    </div>
+                    <div className="text-lg font-bold text-green-900">
+                      ${listing.monthlyRent}/mo
+                    </div>
+                  </div>}
+              </div>
+            ) : listing.listingType === 'rent' && listing.monthlyRent ? (
+              // Rent-only property - show rent price
+              <div>
+                <div className="text-2xl font-bold text-green-900">
+                  ${listing.monthlyRent}/mo
+                </div>
+                <div className="text-xs text-gray-500">
+                  ${listing.securityDeposit} deposit
+                </div>
+              </div>
+            ) : (
+              // Sale-only property - show buy price
+              <div>
+                <div className="text-2xl font-bold text-blue-900">
                   ${listing.estimatedPrice >= 1000000
                     ? `${(listing.estimatedPrice / 1000000).toFixed(1)}M`
                     : `${(listing.estimatedPrice / 1000).toFixed(0)}k`
                   }
                 </div>
+                <div className="text-xs text-gray-500">
+                  ${listing.pricePerSqFt}/sq ft
+                </div>
               </div>
-              {listing.monthlyRent && <div className="bg-green-50 rounded-lg p-2">
-                  <div className="text-xs text-green-600 font-medium mb-1">
-                    Rent
-                  </div>
-                  <div className="text-lg font-bold text-green-900">
-                    ${listing.monthlyRent}/mo
-                  </div>
-                </div>}
-            </div> : compareMode === 'rent' && listing.monthlyRent ? <div>
+            )
+          ) : compareMode === 'rent' && listing.monthlyRent ? (
+            // Rent mode - show rent price
+            <div>
               <div className="text-2xl font-bold text-green-900">
                 ${listing.monthlyRent}/mo
               </div>
               <div className="text-xs text-gray-500">
                 ${listing.securityDeposit} deposit
               </div>
-            </div> : <div>
+            </div>
+          ) : (
+            // Buy mode - show buy price
+            <div>
               <div className="text-2xl font-bold text-blue-900">
                 ${listing.estimatedPrice >= 1000000
                   ? `${(listing.estimatedPrice / 1000000).toFixed(1)}M`
@@ -125,7 +159,8 @@ export function ListingCard({
               <div className="text-xs text-gray-500">
                 ${listing.pricePerSqFt}/sq ft
               </div>
-            </div>}
+            </div>
+          )}
         </div>
 
         {/* Key Stats */}
