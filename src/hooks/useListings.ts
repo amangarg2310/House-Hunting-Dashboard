@@ -108,19 +108,30 @@ export function useListings() {
       }
 
       // Price range - use appropriate range based on compareMode
-      if (compareMode === 'buy' || compareMode === 'both') {
-        // Check buy price range for sale properties
+      if (compareMode === 'buy') {
+        // Buy mode: check buy price range for sale properties
         if (listing.listingType === 'sale' || listing.listingType === 'both') {
           const price = listing.estimatedPrice;
           if (price < filters.priceRange[0] || price > filters.priceRange[1]) {
             return false;
           }
         }
-      }
-
-      if (compareMode === 'rent' || compareMode === 'both') {
-        // Check rent price range for rent properties
+      } else if (compareMode === 'rent') {
+        // Rent mode: check rent price range for rent properties
         if (listing.listingType === 'rent' || listing.listingType === 'both') {
+          const monthlyRent = listing.monthlyRent || 0;
+          if (monthlyRent < filters.rentPriceRange[0] || monthlyRent > filters.rentPriceRange[1]) {
+            return false;
+          }
+        }
+      } else if (compareMode === 'both') {
+        // Both mode: check appropriate price range based on listing type
+        if (listing.listingType === 'sale') {
+          const price = listing.estimatedPrice;
+          if (price < filters.priceRange[0] || price > filters.priceRange[1]) {
+            return false;
+          }
+        } else if (listing.listingType === 'rent') {
           const monthlyRent = listing.monthlyRent || 0;
           if (monthlyRent < filters.rentPriceRange[0] || monthlyRent > filters.rentPriceRange[1]) {
             return false;
