@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import { Listing } from '../types/listing';
 import { ListingCard } from './ListingCard';
-import { SearchIcon, FilterIcon } from 'lucide-react';
+import { ImportPropertyModal } from './ImportPropertyModal';
+import { SearchIcon, FilterIcon, UploadIcon } from 'lucide-react';
 interface AllPropertiesViewProps {
   listings: Listing[];
   onAssignGrade: (listingId: string, grade: 'A' | 'B' | 'C' | 'D' | 'F') => void;
   compareMode: 'buy' | 'rent' | 'both';
   onCompareModeChange: (mode: 'buy' | 'rent' | 'both') => void;
+  onRefreshListings?: () => void;
 }
 type HistoricalFilter = 'all' | 'graded' | 'ungraded';
 export function AllPropertiesView({
   listings,
   onAssignGrade,
   compareMode,
-  onCompareModeChange
+  onCompareModeChange,
+  onRefreshListings
 }: AllPropertiesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [historicalFilter, setHistoricalFilter] = useState<HistoricalFilter>('all');
+  const [showImportModal, setShowImportModal] = useState(false);
   const filteredListings = listings.filter(listing => {
     // Search filter
     if (searchQuery) {
@@ -44,6 +48,14 @@ export function AllPropertiesView({
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input type="text" placeholder="Search by address or county..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
+
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <UploadIcon className="w-4 h-4" />
+            Import
+          </button>
 
           <div className="flex items-center gap-2">
             <FilterIcon className="w-4 h-4 text-gray-500" />
@@ -89,5 +101,16 @@ export function AllPropertiesView({
             {filteredListings.map(listing => <ListingCard key={listing.id} listing={listing} onAssignGrade={grade => onAssignGrade(listing.id, grade)} compareMode={compareMode} />)}
           </div>}
       </div>
+
+      {/* Import Modal */}
+      <ImportPropertyModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          if (onRefreshListings) {
+            onRefreshListings();
+          }
+        }}
+      />
     </div>;
 }

@@ -20,6 +20,7 @@ export function App() {
     gradedCounts,
     loading,
     error,
+    refresh,
     resetAllGrades
   } = useListings();
   const [currentView, setCurrentView] = useState<ViewMode>('new-today');
@@ -96,7 +97,7 @@ export function App() {
 
         {currentView === 'my-grades' && <GradedPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} onResetAllGrades={resetAllGrades} />}
 
-        {currentView === 'all-properties' && <AllPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} onCompareModeChange={setCompareMode} />}
+        {currentView === 'all-properties' && <AllPropertiesView listings={listings} onAssignGrade={assignGrade} compareMode={compareMode} onCompareModeChange={setCompareMode} onRefreshListings={refresh} />}
       </div>
     </div>;
 }

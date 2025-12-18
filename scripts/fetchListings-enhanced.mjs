@@ -31,36 +31,49 @@ if (!HASDATA_API_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Premium Atlanta areas to search
-const premiumAreas = [
-  'Atlanta, GA',
-  'Alpharetta, GA',
-  'Roswell, GA',
-  'Johns Creek, GA',
-  'Sandy Springs, GA',
-  'Cumming, GA',
-  'Buckhead, GA',
-  'Vinings, GA',
-  'Dunwoody, GA',
-  'Marietta, GA',
-  'Smyrna, GA',
-  'Athens, GA',
-  'Gainesville, GA',
-  'Forsyth, GA',
-  'Canton, GA',
-  'Milton, GA',
-  'Duluth, GA',
-  'Kennesaw, GA',
-  'Decatur, GA',
-  'Suwanee, GA',
-  'Midtown, GA',
-  'Virginia-Highland, GA',
-  'Inman Park, GA',
-  'Old Fourth Ward, GA',
-  'Brookhaven, GA',
-  'Druid Hills, GA',
-  'Grant Park, GA',
-  'East Atlanta, GA',
+// Premium Atlanta metro ZIP codes for granular search
+// Using ZIP codes instead of cities to work around API's 40-result limit
+const premiumZipCodes = [
+  // Atlanta proper
+  '30305', '30306', '30307', '30308', '30309', '30310', '30312', '30313', '30314', '30315',
+  '30316', '30317', '30318', '30324', '30326', '30327', '30328', '30329', '30331', '30332',
+  '30334', '30336', '30337', '30342', '30344', '30345', '30346', '30354', '30363',
+  // Alpharetta
+  '30004', '30005', '30009', '30022', '30023',
+  // Roswell
+  '30075', '30076',
+  // Johns Creek
+  '30022', '30024', '30097', '30005',
+  // Sandy Springs
+  '30328', '30342', '30350',
+  // Cumming
+  '30028', '30040', '30041',
+  // Dunwoody
+  '30338', '30346', '30360',
+  // Marietta
+  '30060', '30062', '30063', '30064', '30066', '30067', '30068',
+  // Smyrna
+  '30080', '30081', '30082',
+  // Milton
+  '30004', '30009',
+  // Duluth
+  '30095', '30096', '30097', '30099',
+  // Kennesaw
+  '30144', '30152',
+  // Decatur
+  '30030', '30031', '30032', '30033', '30034', '30035',
+  // Suwanee
+  '30024',
+  // Brookhaven
+  '30319', '30324', '30329', '30341',
+  // Canton
+  '30114', '30115',
+  // Gainesville
+  '30501', '30504', '30506', '30507',
+  // Athens
+  '30601', '30602', '30605', '30606', '30607',
+  // Forsyth County
+  '30028', '30040', '30041',
 ];
 
 // Price tiers for comprehensive search
@@ -241,7 +254,19 @@ async function fetchFromHasData(location, type, priceTier) {
   }
 
   const result = await response.json();
-  const allProperties = result.properties || [];
+
+  // Collect properties from both array and singular fields
+  const allProperties = [];
+
+  // Add from properties array (standard response for broad searches)
+  if (result.properties && Array.isArray(result.properties)) {
+    allProperties.push(...result.properties);
+  }
+
+  // Add from singular property field (specific property searches)
+  if (result.property && typeof result.property === 'object') {
+    allProperties.push(result.property);
+  }
 
   // Client-side filtering by price tier
   const properties = allProperties.filter((prop) => {
@@ -265,45 +290,49 @@ async function main() {
   const allListings = [];
   let totalAPICallsMade = 0;
 
-  console.log('🔍 Fetching properties with comprehensive price-tier strategy...\n');
+  console.log(`🔍 Fetching properties from ${premiumZipCodes.length} ZIP codes with price-tier strategy...\n`);
 
-  // Fetch Sale properties with price tiers
-  for (const city of premiumAreas) {
+  // Deduplicate ZIP codes first
+  const uniqueZips = [...new Set(premiumZipCodes)];
+  console.log(`   Using ${uniqueZips.length} unique ZIP codes\n`);
+
+  // Fetch Sale properties with price tiers by ZIP
+  for (const zip of uniqueZips) {
     for (const tier of SALE_PRICE_TIERS) {
       try {
-        console.log(`  Searching ${city} (forSale, ${tier.label})...`);
-        const properties = await fetchFromHasData(city, 'forSale', tier);
+        console.log(`  Searching ZIP ${zip} (forSale, ${tier.label})...`);
+        const properties = await fetchFromHasData(zip, 'forSale', tier);
         allListings.push(...properties);
         totalAPICallsMade++;
         console.log(`    ✓ Found ${properties.length} properties in ${tier.label}`);
 
-        if (properties.length === 41) {
-          console.log(`    ⚠️  Hit API limit (41 results) - some listings may be missing in this tier`);
+        if (properties.length >= 40) {
+          console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
         }
 
-        // Rate limit: 500ms between requests (faster than before since we have credits)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Rate limit: 300ms between requests (we have 200k credits)
+        await new Promise(resolve => setTimeout(resolve, 300));
       } catch (error) {
         console.error(`    ❌ Error: ${error.message}`);
       }
     }
   }
 
-  // Fetch Rent properties with price tiers
-  for (const city of premiumAreas) {
+  // Fetch Rent properties with price tiers by ZIP
+  for (const zip of uniqueZips) {
     for (const tier of RENT_PRICE_TIERS) {
       try {
-        console.log(`  Searching ${city} (forRent, ${tier.label})...`);
-        const properties = await fetchFromHasData(city, 'forRent', tier);
+        console.log(`  Searching ZIP ${zip} (forRent, ${tier.label})...`);
+        const properties = await fetchFromHasData(zip, 'forRent', tier);
         allListings.push(...properties);
         totalAPICallsMade++;
         console.log(`    ✓ Found ${properties.length} properties in ${tier.label}`);
 
-        if (properties.length === 41) {
-          console.log(`    ⚠️  Hit API limit (41 results) - some listings may be missing in this tier`);
+        if (properties.length >= 40) {
+          console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
       } catch (error) {
         console.error(`    ❌ Error: ${error.message}`);
       }
