@@ -218,8 +218,8 @@ function transformProperty(prop) {
  * Fetch properties from HasData Zillow API for a specific location and type
  */
 async function fetchFromHasData(location, type, otherAmenities = null) {
-  // Sort by days on market (newest first) to prioritize recent listings
-  let url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true&sort=days`;
+  // Note: sort parameter breaks the API, so we use default sorting
+  let url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
 
   // Add other amenities filter if specified (e.g., pool)
   if (otherAmenities) {
