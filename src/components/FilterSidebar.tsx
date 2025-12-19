@@ -125,11 +125,11 @@ export function FilterSidebar({
               <div className="absolute w-full h-2 bg-gray-200 rounded-lg"></div>
               {/* Active range fill */}
               <div className="absolute h-2 bg-blue-600 rounded-lg" style={{
-                left: `${((filters.priceRange[0] - 650000) / (2000000 - 650000)) * 100}%`,
-                right: `${100 - ((filters.priceRange[1] - 650000) / (2000000 - 650000)) * 100}%`
+                left: `${((filters.priceRange[0] - 750000) / (1600000 - 750000)) * 100}%`,
+                right: `${100 - ((filters.priceRange[1] - 750000) / (1600000 - 750000)) * 100}%`
               }}></div>
               {/* Min Price Slider */}
-              <input type="range" min="650000" max="2000000" step="50000" value={filters.priceRange[0]} onChange={e => {
+              <input type="range" min="750000" max="1600000" step="50000" value={filters.priceRange[0]} onChange={e => {
                 const newMin = parseInt(e.target.value);
                 setFilters(prev => ({
                   ...prev,
@@ -137,7 +137,7 @@ export function FilterSidebar({
                 }));
               }} className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:shadow-md" style={{zIndex: 3}} />
               {/* Max Price Slider */}
-              <input type="range" min="650000" max="2000000" step="50000" value={filters.priceRange[1]} onChange={e => {
+              <input type="range" min="750000" max="1600000" step="50000" value={filters.priceRange[1]} onChange={e => {
                 const newMax = parseInt(e.target.value);
                 setFilters(prev => ({
                   ...prev,
@@ -176,11 +176,11 @@ export function FilterSidebar({
               <div className="absolute w-full h-2 bg-gray-200 rounded-lg"></div>
               {/* Active range fill */}
               <div className="absolute h-2 bg-green-600 rounded-lg" style={{
-                left: `${((filters.rentPriceRange[0] - 3000) / (10000 - 3000)) * 100}%`,
-                right: `${100 - ((filters.rentPriceRange[1] - 3000) / (10000 - 3000)) * 100}%`
+                left: `${((filters.rentPriceRange[0] - 3500) / (7000 - 3500)) * 100}%`,
+                right: `${100 - ((filters.rentPriceRange[1] - 3500) / (7000 - 3500)) * 100}%`
               }}></div>
               {/* Min Price Slider */}
-              <input type="range" min="3000" max="10000" step="100" value={filters.rentPriceRange[0]} onChange={e => {
+              <input type="range" min="3500" max="7000" step="100" value={filters.rentPriceRange[0]} onChange={e => {
                 const newMin = parseInt(e.target.value);
                 setFilters(prev => ({
                   ...prev,
@@ -188,7 +188,7 @@ export function FilterSidebar({
                 }));
               }} className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-green-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-green-600 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:shadow-md" style={{zIndex: 3}} />
               {/* Max Price Slider */}
-              <input type="range" min="3000" max="10000" step="100" value={filters.rentPriceRange[1]} onChange={e => {
+              <input type="range" min="3500" max="7000" step="100" value={filters.rentPriceRange[1]} onChange={e => {
                 const newMax = parseInt(e.target.value);
                 setFilters(prev => ({
                   ...prev,

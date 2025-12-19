@@ -78,15 +78,13 @@ const premiumZipCodes = [
 
 // Price tiers for comprehensive search
 const SALE_PRICE_TIERS = [
-  { min: 650000, max: 900000, label: '$650k-$900k' },
-  { min: 900000, max: 1300000, label: '$900k-$1.3M' },
-  { min: 1300000, max: 2000000, label: '$1.3M-$2M' },
+  { min: 750000, max: 1100000, label: '$750k-$1.1M' },
+  { min: 1100000, max: 1600000, label: '$1.1M-$1.6M' },
 ];
 
 const RENT_PRICE_TIERS = [
-  { min: 3000, max: 5000, label: '$3k-$5k' },
+  { min: 3500, max: 5000, label: '$3.5k-$5k' },
   { min: 5000, max: 7000, label: '$5k-$7k' },
-  { min: 7000, max: 10000, label: '$7k-$10k' },
 ];
 
 /**
@@ -128,6 +126,14 @@ function transformProperty(prop) {
   }
 
   const countyName = prop._searchCity || address.city || address.state || 'Atlanta';
+
+  // Filter: Must have 3+ bedrooms AND 3+ bathrooms
+  const beds = prop.beds || 0;
+  const baths = prop.baths || 0;
+
+  if (beds < 3 || baths < 3) {
+    return null; // Skip properties that don't meet bed/bath requirements
+  }
 
   const homeType = (prop.homeType || '').toUpperCase();
   let propertyType = 'single-family';
@@ -237,9 +243,18 @@ function transformProperty(prop) {
 
 /**
  * Fetch properties from HasData for a specific location and price tier
+ * @param {string} searchMode - 'singleStory' or 'ranch'
  */
-async function fetchFromHasData(location, type, priceTier) {
-  const url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
+async function fetchFromHasData(location, type, priceTier, searchMode = 'singleStory') {
+  let url;
+
+  if (searchMode === 'singleStory') {
+    // Search with singleStoryOnly filter
+    url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
+  } else {
+    // Search for ranch properties (no singleStoryOnly filter, will filter in transformation)
+    url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}`;
+  }
 
   const response = await fetch(url, {
     method: 'GET',
@@ -268,10 +283,22 @@ async function fetchFromHasData(location, type, priceTier) {
     allProperties.push(result.property);
   }
 
-  // Client-side filtering by price tier
+  // Client-side filtering by price tier and search mode
   const properties = allProperties.filter((prop) => {
     const price = prop.price || 0;
-    return price >= priceTier.min && price <= priceTier.max;
+    if (price < priceTier.min || price > priceTier.max) {
+      return false;
+    }
+
+    // If in ranch mode, only keep properties that have RANCH in homeType
+    if (searchMode === 'ranch') {
+      const homeType = (prop.homeType || '').toUpperCase();
+      if (!homeType.includes('SINGLE_FAMILY') && !homeType.includes('RANCH')) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   // Add search location metadata
@@ -297,11 +324,13 @@ async function main() {
   console.log(`   Using ${uniqueZips.length} unique ZIP codes\n`);
 
   // Fetch Sale properties with price tiers by ZIP
+  // Strategy: Make two passes - one for singleStoryOnly, one for Ranch properties
+  console.log('  🏠 Pass 1: Searching for single-story properties...\n');
   for (const zip of uniqueZips) {
     for (const tier of SALE_PRICE_TIERS) {
       try {
-        console.log(`  Searching ZIP ${zip} (forSale, ${tier.label})...`);
-        const properties = await fetchFromHasData(zip, 'forSale', tier);
+        console.log(`  Searching ZIP ${zip} (forSale, singleStory, ${tier.label})...`);
+        const properties = await fetchFromHasData(zip, 'forSale', tier, 'singleStory');
         allListings.push(...properties);
         totalAPICallsMade++;
         console.log(`    ✓ Found ${properties.length} properties in ${tier.label}`);
@@ -318,12 +347,56 @@ async function main() {
     }
   }
 
+  console.log('\n  🏡 Pass 2: Searching for ranch properties...\n');
+  for (const zip of uniqueZips) {
+    for (const tier of SALE_PRICE_TIERS) {
+      try {
+        console.log(`  Searching ZIP ${zip} (forSale, ranch, ${tier.label})...`);
+        const properties = await fetchFromHasData(zip, 'forSale', tier, 'ranch');
+        allListings.push(...properties);
+        totalAPICallsMade++;
+        console.log(`    ✓ Found ${properties.length} properties in ${tier.label}`);
+
+        if (properties.length >= 40) {
+          console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error) {
+        console.error(`    ❌ Error: ${error.message}`);
+      }
+    }
+  }
+
   // Fetch Rent properties with price tiers by ZIP
+  // Strategy: Make two passes - one for singleStoryOnly, one for Ranch properties
+  console.log('\n  🏠 Pass 3: Searching for single-story rentals...\n');
   for (const zip of uniqueZips) {
     for (const tier of RENT_PRICE_TIERS) {
       try {
-        console.log(`  Searching ZIP ${zip} (forRent, ${tier.label})...`);
-        const properties = await fetchFromHasData(zip, 'forRent', tier);
+        console.log(`  Searching ZIP ${zip} (forRent, singleStory, ${tier.label})...`);
+        const properties = await fetchFromHasData(zip, 'forRent', tier, 'singleStory');
+        allListings.push(...properties);
+        totalAPICallsMade++;
+        console.log(`    ✓ Found ${properties.length} properties in ${tier.label}`);
+
+        if (properties.length >= 40) {
+          console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error) {
+        console.error(`    ❌ Error: ${error.message}`);
+      }
+    }
+  }
+
+  console.log('\n  🏡 Pass 4: Searching for ranch rentals...\n');
+  for (const zip of uniqueZips) {
+    for (const tier of RENT_PRICE_TIERS) {
+      try {
+        console.log(`  Searching ZIP ${zip} (forRent, ranch, ${tier.label})...`);
+        const properties = await fetchFromHasData(zip, 'forRent', tier, 'ranch');
         allListings.push(...properties);
         totalAPICallsMade++;
         console.log(`    ✓ Found ${properties.length} properties in ${tier.label}`);
