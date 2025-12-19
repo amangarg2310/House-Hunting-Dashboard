@@ -264,8 +264,8 @@ async function fetchFromHasData(location, type, priceTier, searchMode = 'singleS
     // Search with singleStoryOnly filter
     url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
   } else {
-    // Search for ranch properties (no singleStoryOnly filter, will filter in transformation)
-    url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}`;
+    // Search for ranch properties (ALSO use singleStoryOnly filter to prevent multi-story homes)
+    url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
   }
 
   // Add 10-second timeout to prevent hanging

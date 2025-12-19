@@ -78,6 +78,12 @@ function transformProperty(prop: any) {
     return null;
   }
 
+  // CRITICAL: Check actual number of stories - reject multi-story homes
+  const stories = prop.resoFacts?.stories || null;
+  if (stories !== null && stories > 1) {
+    return null; // Filter out multi-story homes
+  }
+
   const status = (prop.status || '').toUpperCase();
   let contractStatus = 'available';
   if (status.includes('PENDING') || status.includes('CONTINGENT')) {
