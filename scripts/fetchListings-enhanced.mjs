@@ -139,20 +139,32 @@ function transformProperty(prop) {
   let propertyType = 'single-family';
   let isSingleFloor = false;
 
+  // CRITICAL: Check actual number of stories from API data
+  // The resoFacts.stories field tells us the real story count
+  const stories = prop.resoFacts?.stories || null;
+
+  // If we have story count data and it's more than 1 story, reject the property
+  if (stories !== null && stories > 1) {
+    return null; // Filter out multi-story homes
+  }
+
   if (homeType.includes('CONDO') || homeType.includes('APARTMENT')) {
     propertyType = 'condo';
-    isSingleFloor = true;
+    isSingleFloor = true; // Condos/apartments are typically single-floor units
   } else if (homeType.includes('TOWNHOUSE')) {
     propertyType = 'townhouse';
-    isSingleFloor = true;
+    // Townhouses can be multi-story, only trust if stories = 1 or unknown
+    isSingleFloor = stories === 1 || stories === null;
   } else if (homeType.includes('SINGLE_FAMILY')) {
     propertyType = 'ranch';
-    isSingleFloor = true;
+    // Single-family doesn't mean single-story! Only trust if stories = 1 or unknown
+    isSingleFloor = stories === 1 || stories === null;
   } else if (homeType.includes('LOT') || homeType.includes('LAND') || homeType.includes('MULTI_FAMILY')) {
     return null;
   } else {
     propertyType = 'ranch';
-    isSingleFloor = true;
+    // Unknown type - only accept if we know it's 1 story or we don't have story data
+    isSingleFloor = stories === 1 || stories === null;
   }
 
   const squareFootage = prop.area || null;
@@ -256,13 +268,20 @@ async function fetchFromHasData(location, type, priceTier, searchMode = 'singleS
     url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}`;
   }
 
+  // Add 10-second timeout to prevent hanging
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': HASDATA_API_KEY
-    }
+    },
+    signal: controller.signal
   });
+
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     throw new Error(`HasData API error (${response.status})`);
@@ -368,13 +387,12 @@ async function main() {
     }
   }
 
-  // Fetch Rent properties with price tiers by ZIP
-  // Strategy: Make two passes - one for singleStoryOnly, one for Ranch properties
+  // Fetch Rent properties with price tiers by ZIP (single-story only for efficiency)
   console.log('\n  🏠 Pass 3: Searching for single-story rentals...\n');
   for (const zip of uniqueZips) {
     for (const tier of RENT_PRICE_TIERS) {
       try {
-        console.log(`  Searching ZIP ${zip} (forRent, singleStory, ${tier.label})...`);
+        console.log(`  Searching ZIP ${zip} (forRent, ${tier.label})...`);
         const properties = await fetchFromHasData(zip, 'forRent', tier, 'singleStory');
         allListings.push(...properties);
         totalAPICallsMade++;
@@ -384,30 +402,11 @@ async function main() {
           console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Rate limit: 500ms between requests for stability
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
         console.error(`    ❌ Error: ${error.message}`);
-      }
-    }
-  }
-
-  console.log('\n  🏡 Pass 4: Searching for ranch rentals...\n');
-  for (const zip of uniqueZips) {
-    for (const tier of RENT_PRICE_TIERS) {
-      try {
-        console.log(`  Searching ZIP ${zip} (forRent, ranch, ${tier.label})...`);
-        const properties = await fetchFromHasData(zip, 'forRent', tier, 'ranch');
-        allListings.push(...properties);
-        totalAPICallsMade++;
-        console.log(`    ✓ Found ${properties.length} properties in ${tier.label}`);
-
-        if (properties.length >= 40) {
-          console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (error) {
-        console.error(`    ❌ Error: ${error.message}`);
+        // Continue on error - don't let one failure stop everything
       }
     }
   }
@@ -433,6 +432,30 @@ async function main() {
 
   console.log(`✅ ${listings.length} valid properties after filtering\n`);
   console.log(`   ${uniqueProperties.length - listings.length} properties filtered out (pending/sold/invalid/multi-family)`);
+
+  // Preserve user grades before upserting
+  console.log('\n🔍 Fetching existing user grades...');
+  const { data: existingGrades } = await supabase
+    .from('listings')
+    .select('id, my_grade')
+    .not('my_grade', 'is', null);
+
+  const gradeMap = new Map();
+  if (existingGrades) {
+    existingGrades.forEach(row => {
+      if (row.my_grade) {
+        gradeMap.set(row.id, row.my_grade);
+      }
+    });
+    console.log(`✅ Found ${gradeMap.size} properties with existing grades`);
+  }
+
+  // Merge grades back into listings
+  listings.forEach(listing => {
+    if (gradeMap.has(listing.id)) {
+      listing.my_grade = gradeMap.get(listing.id);
+    }
+  });
 
   // Save to Supabase
   console.log('\n💾 Saving listings to Supabase...');

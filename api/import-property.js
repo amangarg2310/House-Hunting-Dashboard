@@ -15,10 +15,10 @@ function extractPropertyId(url: string): string | null {
 
 /**
  * Fetch property from HasData API
- * For specific addresses, we don't use singleStoryOnly filter - we'll filter on transformation
+ * MUST include singleStoryOnly filter to avoid importing multi-story homes
  */
 async function fetchProperty(query: string, apiKey: string) {
-  const url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(query)}`;
+  const url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(query)}&singleStoryOnly=true`;
 
   const response = await fetch(url, {
     method: 'GET',
