@@ -135,36 +135,51 @@ function transformProperty(prop) {
     return null; // Skip properties that don't meet bed/bath requirements
   }
 
+  // CRITICAL: Smart multi-story detection using API data + description keywords
+  const stories = prop.resoFacts?.stories || null;
   const homeType = (prop.homeType || '').toUpperCase();
+  const description = (prop.description || '').toLowerCase();
+
+  // Check for single-story keywords in description
+  const singleStoryKeywords = [
+    'ranch', 'single-level', 'single level', 'one-story', 'one story',
+    'single-story', 'single story', 'one level', 'main floor living',
+    'no stairs', 'main level living', 'all on one level'
+  ];
+  const hasSingleStoryKeyword = singleStoryKeywords.some(keyword => description.includes(keyword));
+
+  // Reject if API says multi-story AND description doesn't mention single-story keywords
+  if (stories !== null && stories > 1 && !hasSingleStoryKeyword) {
+    return null; // Definitely multi-story
+  }
+
+  // Smart townhouse filtering - accept only if has elevator
+  if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
+    // Townhouses are typically multi-story
+    // ONLY accept if description mentions "elevator" (indicates accessibility for single-floor living)
+    const hasElevator = description.includes('elevator') || description.includes('lift');
+    if (!hasElevator) {
+      return null; // Reject townhouses without elevator
+    }
+  }
+
   let propertyType = 'single-family';
   let isSingleFloor = false;
-
-  // CRITICAL: Check actual number of stories from API data
-  // The resoFacts.stories field tells us the real story count
-  const stories = prop.resoFacts?.stories || null;
-
-  // If we have story count data and it's more than 1 story, reject the property
-  if (stories !== null && stories > 1) {
-    return null; // Filter out multi-story homes
-  }
 
   if (homeType.includes('CONDO') || homeType.includes('APARTMENT')) {
     propertyType = 'condo';
     isSingleFloor = true; // Condos/apartments are typically single-floor units
   } else if (homeType.includes('TOWNHOUSE')) {
     propertyType = 'townhouse';
-    // Townhouses can be multi-story, only trust if stories = 1 or unknown
-    isSingleFloor = stories === 1 || stories === null;
+    isSingleFloor = true; // Only townhouses with elevators reach this point
   } else if (homeType.includes('SINGLE_FAMILY')) {
     propertyType = 'ranch';
-    // Single-family doesn't mean single-story! Only trust if stories = 1 or unknown
-    isSingleFloor = stories === 1 || stories === null;
+    isSingleFloor = true; // Passed multi-story filtering, so it's single-story
   } else if (homeType.includes('LOT') || homeType.includes('LAND') || homeType.includes('MULTI_FAMILY')) {
     return null;
   } else {
     propertyType = 'ranch';
-    // Unknown type - only accept if we know it's 1 story or we don't have story data
-    isSingleFloor = stories === 1 || stories === null;
+    isSingleFloor = true; // Passed filtering, so consider single-story
   }
 
   const squareFootage = prop.area || null;
@@ -235,6 +250,7 @@ function transformProperty(prop) {
     lease_terms: leaseTerms,
     listed_date: new Date().toISOString(),
     days_on_market: daysOnMarket,
+    description: prop.description || null,
   };
 
   const { total, tier } = calculateValueScore({

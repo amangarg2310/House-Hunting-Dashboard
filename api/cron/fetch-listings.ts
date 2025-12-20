@@ -78,17 +78,39 @@ function transformProperty(prop: any) {
     return null;
   }
 
-  // CRITICAL: Check actual number of stories - reject multi-story homes
-  const stories = prop.resoFacts?.stories || null;
-  if (stories !== null && stories > 1) {
-    return null; // Filter out multi-story homes
-  }
-
   // CRITICAL: Filter out properties with < 3 bedrooms or < 3 bathrooms
   const bedrooms = prop.beds || 0;
   const bathrooms = prop.baths || 0;
   if (bedrooms < 3 || bathrooms < 3) {
     return null; // Reject properties that don't meet minimum requirements
+  }
+
+  // CRITICAL: Smart multi-story detection using API data + description keywords
+  const stories = prop.resoFacts?.stories || null;
+  const homeType = (prop.homeType || '').toUpperCase();
+  const description = (prop.description || '').toLowerCase();
+
+  // Check for single-story keywords in description
+  const singleStoryKeywords = [
+    'ranch', 'single-level', 'single level', 'one-story', 'one story',
+    'single-story', 'single story', 'one level', 'main floor living',
+    'no stairs', 'main level living', 'all on one level'
+  ];
+  const hasSingleStoryKeyword = singleStoryKeywords.some(keyword => description.includes(keyword));
+
+  // Reject if API says multi-story AND description doesn't mention single-story keywords
+  if (stories !== null && stories > 1 && !hasSingleStoryKeyword) {
+    return null; // Definitely multi-story
+  }
+
+  // Smart townhouse filtering - accept only if has elevator
+  if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
+    // Townhouses are typically multi-story
+    // ONLY accept if description mentions "elevator" (indicates accessibility for single-floor living)
+    const hasElevator = description.includes('elevator') || description.includes('lift');
+    if (!hasElevator) {
+      return null; // Reject townhouses without elevator
+    }
   }
 
   const status = (prop.status || '').toUpperCase();
@@ -134,6 +156,7 @@ function transformProperty(prop: any) {
     lease_terms: prop.listingType === 'forRent' ? '12 months' : null,
     listed_date: new Date().toISOString(),
     days_on_market: prop.daysOnZillow || 0,
+    description: prop.description || null,
   };
 }
 
