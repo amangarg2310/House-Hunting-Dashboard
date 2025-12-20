@@ -84,6 +84,13 @@ function transformProperty(prop: any) {
     return null; // Filter out multi-story homes
   }
 
+  // CRITICAL: Filter out properties with < 3 bedrooms or < 3 bathrooms
+  const bedrooms = prop.beds || 0;
+  const bathrooms = prop.baths || 0;
+  if (bedrooms < 3 || bathrooms < 3) {
+    return null; // Reject properties that don't meet minimum requirements
+  }
+
   const status = (prop.status || '').toUpperCase();
   let contractStatus = 'available';
   if (status.includes('PENDING') || status.includes('CONTINGENT')) {
