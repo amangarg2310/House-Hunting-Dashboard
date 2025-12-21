@@ -35,6 +35,119 @@ const premiumAreas = [
 
 const listingTypes = ['forSale', 'forRent'];
 
+// Fetch detailed property data from Zillow property API (includes description)
+async function fetchZillowPropertyDetails(propertyUrl: string, apiKey: string) {
+  const url = `https://api.hasdata.com/scrape/zillow/property?url=${encodeURIComponent(propertyUrl)}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey
+      }
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const result = await response.json();
+    return result.property || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Fetch detailed property data from Redfin property API (includes description)
+async function fetchRedfinPropertyDetails(propertyUrl: string, apiKey: string) {
+  const url = `https://api.hasdata.com/scrape/redfin/property?url=${encodeURIComponent(propertyUrl)}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey
+      }
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const result = await response.json();
+    return result.property || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Fetch from Redfin listing API
+async function fetchFromRedfin(location: string, type: string, apiKey: string) {
+  const url = `https://api.hasdata.com/scrape/redfin/listing?keyword=${encodeURIComponent(location)}&type=${type}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey
+      }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const result = await response.json();
+    const allProperties = result.properties || [];
+
+    // Filter by price range (same as Zillow)
+    const MIN_PRICE_SALE = 650000;
+    const MAX_PRICE_SALE = 2000000;
+    const MIN_PRICE_RENT = 3000;
+    const MAX_PRICE_RENT = 10000;
+
+    const properties = allProperties.filter((prop: any) => {
+      const price = prop.price || 0;
+      if (type === 'forSale') {
+        return price >= MIN_PRICE_SALE && price <= MAX_PRICE_SALE;
+      } else {
+        return price >= MIN_PRICE_RENT && price <= MAX_PRICE_RENT;
+      }
+    });
+
+    // DUAL API: Enrich with property details to get descriptions
+    const enrichedProperties = [];
+    for (const prop of properties) {
+      const propertyDetails = await fetchRedfinPropertyDetails(prop.url, apiKey);
+
+      if (propertyDetails && propertyDetails.description) {
+        enrichedProperties.push({
+          ...prop,
+          description: propertyDetails.description,
+          source: 'redfin'
+        });
+      } else {
+        enrichedProperties.push({
+          ...prop,
+          description: null,
+          source: 'redfin'
+        });
+      }
+
+      // Rate limit: 500ms between property detail requests
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    return enrichedProperties;
+  } catch (error) {
+    console.error(`Redfin fetch error for ${location}:`, error);
+    return [];
+  }
+}
+
 async function fetchFromHasData(location: string, type: string, apiKey: string) {
   const url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
 
@@ -68,7 +181,30 @@ async function fetchFromHasData(location: string, type: string, apiKey: string) 
     }
   });
 
-  return properties;
+  // DUAL API: Enrich with property details to get descriptions
+  const enrichedProperties = [];
+  for (const prop of properties) {
+    const propertyDetails = await fetchZillowPropertyDetails(prop.url, apiKey);
+
+    if (propertyDetails && propertyDetails.description) {
+      // Merge listing data with property details
+      enrichedProperties.push({
+        ...prop,
+        description: propertyDetails.description
+      });
+    } else {
+      // Keep property without description (will be filtered conservatively)
+      enrichedProperties.push({
+        ...prop,
+        description: null
+      });
+    }
+
+    // Rate limit: 500ms between property detail requests
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  return enrichedProperties;
 }
 
 function transformProperty(prop: any) {
@@ -85,31 +221,77 @@ function transformProperty(prop: any) {
     return null; // Reject properties that don't meet minimum requirements
   }
 
-  // CRITICAL: Smart multi-story detection using API data + description keywords
-  const stories = prop.resoFacts?.stories || null;
-  const homeType = (prop.homeType || '').toUpperCase();
+  // CRITICAL: Bidirectional keyword filtering using description
   const description = (prop.description || '').toLowerCase();
+  const homeType = (prop.homeType || '').toUpperCase();
 
-  // Check for single-story keywords in description
-  const singleStoryKeywords = [
-    'ranch', 'single-level', 'single level', 'one-story', 'one story',
-    'single-story', 'single story', 'one level', 'main floor living',
-    'no stairs', 'main level living', 'all on one level'
+  // Multi-story keywords that indicate the property is NOT single-story
+  const multiStoryKeywords = [
+    'two story', '2 story', 'two-story', '2-story',
+    'three story', '3 story', 'multi story', 'multi-story',
+    'upstairs', 'second floor', 'third floor',
+    'upper level', 'lower level', 'split level'
   ];
-  const hasSingleStoryKeyword = singleStoryKeywords.some(keyword => description.includes(keyword));
 
-  // Reject if API says multi-story AND description doesn't mention single-story keywords
-  if (stories !== null && stories > 1 && !hasSingleStoryKeyword) {
-    return null; // Definitely multi-story
-  }
+  // Single-story keywords that indicate the property IS single-story
+  const singleStoryKeywords = [
+    'ranch', 'single-level', 'single level',
+    'one-story', 'one story', 'single-story', 'single story',
+    'one level', 'main floor living', 'no stairs',
+    'main level living', 'all on one level', 'one-level'
+  ];
 
-  // Smart townhouse filtering - accept only if has elevator
-  if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
-    // Townhouses are typically multi-story
-    // ONLY accept if description mentions "elevator" (indicates accessibility for single-floor living)
-    const hasElevator = description.includes('elevator') || description.includes('lift');
-    if (!hasElevator) {
-      return null; // Reject townhouses without elevator
+  // Elevator keywords for townhouses
+  const elevatorKeywords = ['elevator', 'lift'];
+
+  // If we have a description, use bidirectional filtering
+  if (description) {
+    const hasMultiStoryKeyword = multiStoryKeywords.some(keyword => description.includes(keyword));
+    const hasSingleStoryKeyword = singleStoryKeywords.some(keyword => description.includes(keyword));
+    const hasElevatorKeyword = elevatorKeywords.some(keyword => description.includes(keyword));
+
+    // Reject if multi-story keywords present WITHOUT single-story keywords
+    if (hasMultiStoryKeyword && !hasSingleStoryKeyword) {
+      return null; // Definitely multi-story
+    }
+
+    // Special handling for townhouses: require elevator mention
+    if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
+      if (!hasElevatorKeyword) {
+        return null; // Townhouse without elevator = multi-story
+      }
+    }
+
+    // Reject if no positive single-story indicators for non-condo/apartment types
+    if (!homeType.includes('CONDO') && !homeType.includes('APARTMENT')) {
+      if (!hasSingleStoryKeyword && !hasMultiStoryKeyword) {
+        // Ambiguous - be conservative and reject
+        return null;
+      }
+    }
+  } else {
+    // No description available - use conservative API-only filtering
+    const stories = prop.resoFacts?.stories || null;
+
+    // STRICT filtering: Reject if API says multi-story (stories > 1)
+    if (stories !== null && stories > 1) {
+      return null;
+    }
+
+    // Conservative: Reject townhouses without description (can't verify elevator)
+    if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
+      return null;
+    }
+
+    // Conservative: Without story data or description, only accept safe types
+    if (stories === null) {
+      const isSafeType = homeType.includes('CONDO') ||
+                         homeType.includes('APARTMENT') ||
+                         homeType.includes('SINGLE_FAMILY');
+
+      if (!isSafeType) {
+        return null;
+      }
     }
   }
 
@@ -182,7 +364,7 @@ export default async function handler(
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const allListings: any[] = [];
 
-    // Fetch from all cities
+    // Layer 1: Fetch from Zillow (all cities)
     for (const city of premiumAreas) {
       for (const type of listingTypes) {
         try {
@@ -192,12 +374,27 @@ export default async function handler(
           // Rate limit: 1 second between requests
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error: any) {
-          console.error(`Error fetching ${city} (${type}):`, error.message);
+          console.error(`Error fetching Zillow ${city} (${type}):`, error.message);
         }
       }
     }
 
-    // Deduplicate
+    // Layer 2: Fetch from Redfin (all cities) to catch additional properties
+    for (const city of premiumAreas) {
+      for (const type of listingTypes) {
+        try {
+          const properties = await fetchFromRedfin(city, type, HASDATA_API_KEY);
+          allListings.push(...properties);
+
+          // Rate limit: 1 second between requests
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error: any) {
+          console.error(`Error fetching Redfin ${city} (${type}):`, error.message);
+        }
+      }
+    }
+
+    // Deduplicate across both sources
     const propertyMap = new Map();
     allListings.forEach(prop => {
       if (!propertyMap.has(prop.id)) {

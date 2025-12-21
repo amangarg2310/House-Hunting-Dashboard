@@ -135,31 +135,77 @@ function transformProperty(prop) {
     return null; // Skip properties that don't meet bed/bath requirements
   }
 
-  // CRITICAL: Smart multi-story detection using API data + description keywords
-  const stories = prop.resoFacts?.stories || null;
-  const homeType = (prop.homeType || '').toUpperCase();
+  // CRITICAL: Bidirectional keyword filtering using description
   const description = (prop.description || '').toLowerCase();
+  const homeType = (prop.homeType || '').toUpperCase();
 
-  // Check for single-story keywords in description
-  const singleStoryKeywords = [
-    'ranch', 'single-level', 'single level', 'one-story', 'one story',
-    'single-story', 'single story', 'one level', 'main floor living',
-    'no stairs', 'main level living', 'all on one level'
+  // Multi-story keywords that indicate the property is NOT single-story
+  const multiStoryKeywords = [
+    'two story', '2 story', 'two-story', '2-story',
+    'three story', '3 story', 'multi story', 'multi-story',
+    'upstairs', 'second floor', 'third floor',
+    'upper level', 'lower level', 'split level'
   ];
-  const hasSingleStoryKeyword = singleStoryKeywords.some(keyword => description.includes(keyword));
 
-  // Reject if API says multi-story AND description doesn't mention single-story keywords
-  if (stories !== null && stories > 1 && !hasSingleStoryKeyword) {
-    return null; // Definitely multi-story
-  }
+  // Single-story keywords that indicate the property IS single-story
+  const singleStoryKeywords = [
+    'ranch', 'single-level', 'single level',
+    'one-story', 'one story', 'single-story', 'single story',
+    'one level', 'main floor living', 'no stairs',
+    'main level living', 'all on one level', 'one-level'
+  ];
 
-  // Smart townhouse filtering - accept only if has elevator
-  if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
-    // Townhouses are typically multi-story
-    // ONLY accept if description mentions "elevator" (indicates accessibility for single-floor living)
-    const hasElevator = description.includes('elevator') || description.includes('lift');
-    if (!hasElevator) {
-      return null; // Reject townhouses without elevator
+  // Elevator keywords for townhouses
+  const elevatorKeywords = ['elevator', 'lift'];
+
+  // If we have a description, use bidirectional filtering
+  if (description) {
+    const hasMultiStoryKeyword = multiStoryKeywords.some(keyword => description.includes(keyword));
+    const hasSingleStoryKeyword = singleStoryKeywords.some(keyword => description.includes(keyword));
+    const hasElevatorKeyword = elevatorKeywords.some(keyword => description.includes(keyword));
+
+    // Reject if multi-story keywords present WITHOUT single-story keywords
+    if (hasMultiStoryKeyword && !hasSingleStoryKeyword) {
+      return null; // Definitely multi-story
+    }
+
+    // Special handling for townhouses: require elevator mention
+    if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
+      if (!hasElevatorKeyword) {
+        return null; // Townhouse without elevator = multi-story
+      }
+    }
+
+    // Reject if no positive single-story indicators for non-condo/apartment types
+    if (!homeType.includes('CONDO') && !homeType.includes('APARTMENT')) {
+      if (!hasSingleStoryKeyword && !hasMultiStoryKeyword) {
+        // Ambiguous - be conservative and reject
+        return null;
+      }
+    }
+  } else {
+    // No description available - use conservative API-only filtering
+    const stories = prop.resoFacts?.stories || null;
+
+    // STRICT filtering: Reject if API says multi-story (stories > 1)
+    if (stories !== null && stories > 1) {
+      return null;
+    }
+
+    // Conservative: Reject townhouses without description (can't verify elevator)
+    if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
+      return null;
+    }
+
+    // Conservative: Without story data or description, only accept safe types
+    if (stories === null) {
+      const isSafeType = homeType.includes('CONDO') ||
+                         homeType.includes('APARTMENT') ||
+                         homeType.includes('SINGLE_FAMILY');
+
+      if (!isSafeType) {
+        return null;
+      }
     }
   }
 
@@ -270,6 +316,136 @@ function transformProperty(prop) {
 }
 
 /**
+ * Fetch detailed property data from Zillow property API (includes description)
+ */
+async function fetchZillowPropertyDetails(propertyUrl) {
+  const url = `https://api.hasdata.com/scrape/zillow/property?url=${encodeURIComponent(propertyUrl)}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': HASDATA_API_KEY
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const result = await response.json();
+    return result.property || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Fetch detailed property data from Redfin property API (includes description)
+ */
+async function fetchRedfinPropertyDetails(propertyUrl) {
+  const url = `https://api.hasdata.com/scrape/redfin/property?url=${encodeURIComponent(propertyUrl)}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': HASDATA_API_KEY
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const result = await response.json();
+    return result.property || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Fetch from Redfin listing API
+ */
+async function fetchFromRedfin(location, type, priceTier, searchMode = 'singleStory') {
+  const url = `https://api.hasdata.com/scrape/redfin/listing?keyword=${encodeURIComponent(location)}&type=${type}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': HASDATA_API_KEY
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const result = await response.json();
+    const allProperties = result.properties || [];
+
+    // Filter by price tier
+    const properties = allProperties.filter((prop) => {
+      const price = prop.price || 0;
+      return price >= priceTier.min && price <= priceTier.max;
+    });
+
+    // Enrich with property details to get descriptions
+    const enrichedProperties = [];
+    for (const prop of properties) {
+      const propertyDetails = await fetchRedfinPropertyDetails(prop.url);
+
+      if (propertyDetails && propertyDetails.description) {
+        enrichedProperties.push({
+          ...prop,
+          description: propertyDetails.description,
+          source: 'redfin'
+        });
+      } else {
+        enrichedProperties.push({
+          ...prop,
+          description: null,
+          source: 'redfin'
+        });
+      }
+
+      // Rate limit: 500ms between property detail requests
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Add search location metadata
+    const searchCity = location.split(',')[0].trim();
+    return enrichedProperties.map(prop => ({ ...prop, _searchCity: searchCity }));
+  } catch (error) {
+    console.error(`Redfin fetch error for ${location}:`, error);
+    return [];
+  }
+}
+
+/**
  * Fetch properties from HasData for a specific location and price tier
  * @param {string} searchMode - 'singleStory' or 'ranch'
  */
@@ -336,9 +512,30 @@ async function fetchFromHasData(location, type, priceTier, searchMode = 'singleS
     return true;
   });
 
+  // DUAL API: Enrich with property details to get descriptions
+  const enrichedProperties = [];
+  for (const prop of properties) {
+    const propertyDetails = await fetchZillowPropertyDetails(prop.url);
+
+    if (propertyDetails && propertyDetails.description) {
+      enrichedProperties.push({
+        ...prop,
+        description: propertyDetails.description
+      });
+    } else {
+      enrichedProperties.push({
+        ...prop,
+        description: null
+      });
+    }
+
+    // Rate limit: 500ms between property detail requests
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
   // Add search location metadata
   const searchCity = location.split(',')[0].trim();
-  return properties.map(prop => ({ ...prop, _searchCity: searchCity }));
+  return enrichedProperties.map(prop => ({ ...prop, _searchCity: searchCity }));
 }
 
 /**
@@ -427,10 +624,45 @@ async function main() {
     }
   }
 
+  // Pass 4: Fetch from Redfin to catch additional properties
+  console.log('\n  🏠 Pass 4: Searching Redfin for additional single-story sales...\n');
+  for (const zip of uniqueZips) {
+    for (const tier of SALE_PRICE_TIERS) {
+      try {
+        console.log(`  Searching Redfin ZIP ${zip} (forSale, ${tier.label})...`);
+        const properties = await fetchFromRedfin(zip, 'forSale', tier, 'singleStory');
+        allListings.push(...properties);
+        totalAPICallsMade++;
+        console.log(`    ✓ Found ${properties.length} properties from Redfin`);
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`    ❌ Error: ${error.message}`);
+      }
+    }
+  }
+
+  console.log('\n  🏠 Pass 5: Searching Redfin for additional single-story rentals...\n');
+  for (const zip of uniqueZips) {
+    for (const tier of RENT_PRICE_TIERS) {
+      try {
+        console.log(`  Searching Redfin ZIP ${zip} (forRent, ${tier.label})...`);
+        const properties = await fetchFromRedfin(zip, 'forRent', tier, 'singleStory');
+        allListings.push(...properties);
+        totalAPICallsMade++;
+        console.log(`    ✓ Found ${properties.length} properties from Redfin`);
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`    ❌ Error: ${error.message}`);
+      }
+    }
+  }
+
   console.log(`\n✅ Total API calls made: ${totalAPICallsMade}`);
   console.log(`✅ Total fetched (with duplicates): ${allListings.length} properties`);
 
-  // Deduplicate
+  // Deduplicate across Zillow + Redfin
   const propertyMap = new Map();
   allListings.forEach(prop => {
     if (!propertyMap.has(prop.id)) {
