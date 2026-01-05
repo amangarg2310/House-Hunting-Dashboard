@@ -221,54 +221,82 @@ function transformProperty(prop: any) {
     return null; // Reject properties that don't meet minimum requirements
   }
 
-  // CRITICAL: Bidirectional keyword filtering using description
+  // IMPROVED: Combined filtering logic (Primary-on-Main + Severe Multi-Story + Light Multi-Story)
   const description = (prop.description || '').toLowerCase();
   const homeType = (prop.homeType || '').toUpperCase();
 
-  // Multi-story keywords that indicate the property is NOT single-story
-  const multiStoryKeywords = [
-    'two story', '2 story', 'two-story', '2-story',
-    'three story', '3 story', 'multi story', 'multi-story',
-    'upstairs', 'second floor', 'third floor',
-    'upper level', 'lower level', 'split level'
-  ];
-
-  // Single-story keywords that indicate the property IS single-story
-  const singleStoryKeywords = [
-    'ranch', 'single-level', 'single level',
-    'one-story', 'one story', 'single-story', 'single story',
-    'one level', 'main floor living', 'no stairs',
-    'main level living', 'all on one level', 'one-level'
-  ];
-
-  // Elevator keywords for townhouses
-  const elevatorKeywords = ['elevator', 'lift'];
-
-  // If we have a description, use bidirectional filtering
+  // If we have a description, use the new combined filtering logic
   if (description) {
-    const hasMultiStoryKeyword = multiStoryKeywords.some(keyword => description.includes(keyword));
-    const hasSingleStoryKeyword = singleStoryKeywords.some(keyword => description.includes(keyword));
-    const hasElevatorKeyword = elevatorKeywords.some(keyword => description.includes(keyword));
+    // Option 1: Primary-on-Main indicators (ACCEPT these)
+    const primaryOnMainKeywords = [
+      'primary on main', 'primary on the main', 'main level primary',
+      'master on main', 'master on the main', 'main level master',
+      'owner suite on main', 'owner\'s suite on main', 'owner suite on the main',
+      'primary-on-main', 'master-on-main',
+      'primary bedroom on main', 'master bedroom on main',
+      'primary suite on main', 'master suite on main'
+    ];
+    const hasPrimaryOnMain = primaryOnMainKeywords.some(kw => description.includes(kw));
 
-    // Reject if multi-story keywords present WITHOUT single-story keywords
-    if (hasMultiStoryKeyword && !hasSingleStoryKeyword) {
-      return null; // Definitely multi-story
-    }
+    // Option 2: Severe multi-story keywords (REJECT these - 3+ stories or primary upstairs)
+    const severeMultiStoryKeywords = [
+      'three story', '3 story', 'three-story', '3-story',
+      'four story', '4 story', 'four-story', '4-story',
+      'primary upstairs', 'primary bedroom upstairs', 'primary suite upstairs',
+      'master upstairs', 'master bedroom upstairs', 'master suite upstairs',
+      'owner suite upstairs', 'owner\'s suite upstairs',
+      'stairs to primary', 'stairs to master'
+    ];
+    const hasSevereMultiStory = severeMultiStoryKeywords.some(kw => description.includes(kw));
 
-    // Special handling for townhouses: require elevator mention
+    // Option 3: Light multi-story keywords (secondary bedrooms upstairs - OK if primary on main)
+    const lightMultiStoryKeywords = [
+      'upstairs', 'second floor', 'upper level', 'lower level',
+      'two story', '2 story', 'two-story', '2-story',
+      'split level'
+    ];
+    const hasLightMultiStory = lightMultiStoryKeywords.some(kw => description.includes(kw));
+
+    // Single-story indicators
+    const singleStoryKeywords = [
+      'ranch', 'single-level', 'single level',
+      'one-story', 'one story', 'single-story', 'single story',
+      'main floor living', 'no stairs', 'one level', 'all on one level'
+    ];
+    const hasSingleStory = singleStoryKeywords.some(kw => description.includes(kw));
+
+    // Elevator keywords for townhouses
+    const elevatorKeywords = ['elevator', 'lift'];
+    const hasElevatorKeyword = elevatorKeywords.some(kw => description.includes(kw));
+
+    // DECISION LOGIC:
+    // 1. If has primary-on-main, ACCEPT (even if has upstairs bedrooms)
+    // 2. If has severe multi-story (3+ stories or primary upstairs), REJECT
+    // 3. If has single-story indicators, ACCEPT
+    // 4. If only has light multi-story (like upstairs bedrooms) without primary-on-main, REJECT
+    // 5. Special handling for townhouses: require elevator mention
+
+    // Special handling for townhouses
     if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
-      if (!hasElevatorKeyword) {
-        return null; // Townhouse without elevator = multi-story
+      if (!hasElevatorKeyword && !hasPrimaryOnMain) {
+        return null; // Townhouse without elevator or primary-on-main = multi-story
       }
     }
 
-    // Reject if no positive single-story indicators for non-condo/apartment types
-    if (!homeType.includes('CONDO') && !homeType.includes('APARTMENT')) {
-      if (!hasSingleStoryKeyword && !hasMultiStoryKeyword) {
-        // Ambiguous - be conservative and reject
-        return null;
-      }
+    // Apply combined filtering logic
+    if (hasPrimaryOnMain) {
+      // ACCEPT: Has primary-on-main (can live entirely on main floor)
+      // Continue processing
+    } else if (hasSevereMultiStory) {
+      return null; // REJECT: Has severe multi-story (3+ stories or primary upstairs)
+    } else if (hasSingleStory) {
+      // ACCEPT: Has single-story keywords
+      // Continue processing
+    } else if (hasLightMultiStory) {
+      return null; // REJECT: Has multi-story keywords without primary-on-main confirmation
     }
+    // Otherwise ACCEPT (no clear multi-story indicators)
+
   } else {
     // No description available - use conservative API-only filtering
     const stories = prop.resoFacts?.stories || null;
