@@ -17,8 +17,8 @@ const PROPERTY_TYPES = [{
   label: 'Condo',
   icon: BuildingIcon
 }, {
-  value: 'townhouse' as const,
-  label: 'Townhouse',
+  value: 'master-on-main' as const,
+  label: 'Master on Main',
   icon: Building2Icon
 }];
 export function FilterSidebar({
@@ -27,7 +27,7 @@ export function FilterSidebar({
   onClearFilters,
   compareMode
 }: FilterSidebarProps) {
-  const selectPropertyType = (type: 'ranch' | 'condo' | 'townhouse' | null) => {
+  const selectPropertyType = (type: 'ranch' | 'condo' | 'master-on-main' | null) => {
     setFilters(prev => ({
       ...prev,
       propertyTypes: type === null ? [] : [type]

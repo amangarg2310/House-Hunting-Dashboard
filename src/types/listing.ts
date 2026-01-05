@@ -23,7 +23,7 @@ export interface Listing {
   photoUrl?: string;
   photoUrls?: string[];
   // Property features
-  propertyType: 'ranch' | 'condo' | 'townhouse' | 'single-family' | 'multi-story';
+  propertyType: 'ranch' | 'condo' | 'master-on-main' | 'single-family' | 'multi-story';
   isSingleFloor: boolean;
   hasBackyard: boolean;
   hasPool: boolean;
@@ -38,7 +38,7 @@ export interface Listing {
   valueTier?: 'exceptional' | 'great' | 'good' | null;
 }
 export interface FilterState {
-  propertyTypes: ('ranch' | 'condo' | 'townhouse')[];
+  propertyTypes: ('ranch' | 'condo' | 'master-on-main')[];
   showSingleFloorOnly: boolean;
   contractStatus: 'available' | 'pending' | 'all';
   hasBackyard: boolean | null;

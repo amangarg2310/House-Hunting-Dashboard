@@ -167,7 +167,13 @@ function transformProperty(prop) {
     const lightMultiStoryKeywords = [
       'upstairs', 'second floor', 'upper level', 'lower level',
       'two story', '2 story', 'two-story', '2-story',
-      'split level'
+      'split level',
+      // Basement/terrace level indicators
+      'terrace level', 'terrace-level', 'basement', 'finished basement', 'walkout basement', 'daylight basement',
+      // Vertical architecture
+      'rooftop', 'roof deck', 'roof terrace', 'ascend', 'descend',
+      // Multiple levels/floors
+      'multiple levels', 'multiple floors', 'staircase', 'stairway', 'stairs to'
     ];
     const hasLightMultiStory = lightMultiStoryKeywords.some(kw => description.includes(kw));
 
@@ -179,22 +185,17 @@ function transformProperty(prop) {
     ];
     const hasSingleStory = singleStoryKeywords.some(kw => description.includes(kw));
 
-    // Elevator keywords for townhouses
-    const elevatorKeywords = ['elevator', 'lift'];
-    const hasElevatorKeyword = elevatorKeywords.some(kw => description.includes(kw));
-
     // DECISION LOGIC:
-    // 1. If has primary-on-main, ACCEPT (even if has upstairs bedrooms)
-    // 2. If has severe multi-story (3+ stories or primary upstairs), REJECT
-    // 3. If has single-story indicators, ACCEPT
-    // 4. If only has light multi-story (like upstairs bedrooms) without primary-on-main, REJECT
-    // 5. Special handling for townhouses: require elevator mention
+    // 1. REJECT all townhomes (too many are multi-story)
+    // 2. If has primary-on-main, ACCEPT (even if has upstairs bedrooms)
+    // 3. If has severe multi-story (3+ stories or primary upstairs), REJECT
+    // 4. If has single-story indicators, ACCEPT
+    // 5. If only has light multi-story (like upstairs bedrooms) without primary-on-main, REJECT
+    // 6. If no keywords match but 5+ beds or 4+ baths, REJECT (likely multi-story)
 
-    // Special handling for townhouses
+    // Reject all townhomes
     if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
-      if (!hasElevatorKeyword && !hasPrimaryOnMain) {
-        return null; // Townhouse without elevator or primary-on-main = multi-story
-      }
+      return null; // Townhomes are almost always multi-story
     }
 
     // Apply combined filtering logic
@@ -208,8 +209,13 @@ function transformProperty(prop) {
       // Continue processing
     } else if (hasLightMultiStory) {
       return null; // REJECT: Has multi-story keywords without primary-on-main confirmation
+    } else {
+      // No clear keywords - use bed/bath heuristic
+      if (beds >= 5 || baths >= 4) {
+        return null; // REJECT: High bed/bath count suggests multi-story
+      }
+      // Otherwise ACCEPT (likely small condo/ranch without descriptive text)
     }
-    // Otherwise ACCEPT (no clear multi-story indicators)
 
   } else {
     // No description available - use conservative API-only filtering
@@ -220,7 +226,7 @@ function transformProperty(prop) {
       return null;
     }
 
-    // Conservative: Reject townhouses without description (can't verify elevator)
+    // Reject all townhouses (no description to verify suitability)
     if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
       return null;
     }
@@ -240,20 +246,36 @@ function transformProperty(prop) {
   let propertyType = 'single-family';
   let isSingleFloor = false;
 
+  // Determine property type based on characteristics
   if (homeType.includes('CONDO') || homeType.includes('APARTMENT')) {
     propertyType = 'condo';
     isSingleFloor = true; // Condos/apartments are typically single-floor units
-  } else if (homeType.includes('TOWNHOUSE')) {
-    propertyType = 'townhouse';
-    isSingleFloor = true; // Only townhouses with elevators reach this point
-  } else if (homeType.includes('SINGLE_FAMILY')) {
-    propertyType = 'ranch';
-    isSingleFloor = true; // Passed multi-story filtering, so it's single-story
   } else if (homeType.includes('LOT') || homeType.includes('LAND') || homeType.includes('MULTI_FAMILY')) {
-    return null;
+    return null; // Filter out lots, land, multi-family
   } else {
-    propertyType = 'ranch';
-    isSingleFloor = true; // Passed filtering, so consider single-story
+    // For single-family homes, determine if master-on-main or ranch
+    const desc = (prop.description || '').toLowerCase();
+    const hasPrimaryOnMain = [
+      'primary on main', 'primary on the main', 'main level primary',
+      'master on main', 'master on the main', 'main level master',
+      'owner suite on main', 'owner\'s suite on main',
+      'primary-on-main', 'master-on-main',
+      'primary bedroom on main', 'master bedroom on main',
+      'primary suite on main', 'master suite on main'
+    ].some(kw => desc.includes(kw));
+
+    const hasMultiStoryIndicators = [
+      'upstairs', 'second floor', 'upper level', 'two story', '2 story',
+      'terrace level', 'basement', 'rooftop', 'multiple levels'
+    ].some(kw => desc.includes(kw));
+
+    if (hasPrimaryOnMain && hasMultiStoryIndicators) {
+      propertyType = 'master-on-main';
+      isSingleFloor = false; // Multi-story but primary on main
+    } else {
+      propertyType = 'ranch';
+      isSingleFloor = true; // Single-story or passed filtering
+    }
   }
 
   const squareFootage = prop.area || null;
@@ -346,65 +368,89 @@ function transformProperty(prop) {
 /**
  * Fetch detailed property data from Zillow property API (includes description)
  */
-async function fetchZillowPropertyDetails(propertyUrl) {
+async function fetchZillowPropertyDetails(propertyUrl, retries = 3) {
   const url = `https://api.hasdata.com/scrape/zillow/property?url=${encodeURIComponent(propertyUrl)}`;
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased from 10s to 30s
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': HASDATA_API_KEY
-      },
-      signal: controller.signal
-    });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': HASDATA_API_KEY
+        },
+        signal: controller.signal
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      return null;
+      if (!response.ok) {
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          continue;
+        }
+        return null;
+      }
+
+      const result = await response.json();
+      return result.property || null;
+    } catch (error) {
+      if (attempt < retries && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+        console.error(`    ⚠️  Timeout on attempt ${attempt}/${retries}, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+        continue;
+      }
+      return null; // After all retries failed, return null (graceful degradation)
     }
-
-    const result = await response.json();
-    return result.property || null;
-  } catch (error) {
-    return null;
   }
+  return null;
 }
 
 /**
  * Fetch detailed property data from Redfin property API (includes description)
  */
-async function fetchRedfinPropertyDetails(propertyUrl) {
+async function fetchRedfinPropertyDetails(propertyUrl, retries = 3) {
   const url = `https://api.hasdata.com/scrape/redfin/property?url=${encodeURIComponent(propertyUrl)}`;
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased from 10s to 30s
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': HASDATA_API_KEY
-      },
-      signal: controller.signal
-    });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': HASDATA_API_KEY
+        },
+        signal: controller.signal
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      return null;
+      if (!response.ok) {
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          continue;
+        }
+        return null;
+      }
+
+      const result = await response.json();
+      return result.property || null;
+    } catch (error) {
+      if (attempt < retries && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+        console.error(`    ⚠️  Timeout on attempt ${attempt}/${retries}, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+        continue;
+      }
+      return null; // After all retries failed, return null (graceful degradation)
     }
-
-    const result = await response.json();
-    return result.property || null;
-  } catch (error) {
-    return null;
   }
+  return null;
 }
 
 /**
@@ -478,15 +524,11 @@ async function fetchFromRedfin(location, type, priceTier, searchMode = 'singleSt
  * @param {string} searchMode - 'singleStory' or 'ranch'
  */
 async function fetchFromHasData(location, type, priceTier, searchMode = 'singleStory') {
-  let url;
-
-  if (searchMode === 'singleStory') {
-    // Search with singleStoryOnly filter
-    url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
-  } else {
-    // Search for ranch properties (ALSO use singleStoryOnly filter to prevent multi-story homes)
-    url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}&singleStoryOnly=true`;
-  }
+  // IMPORTANT: Do NOT use singleStoryOnly=true API filter!
+  // We need ALL properties so our intelligent filtering can detect "primary-on-main" homes
+  // that have upstairs bedrooms but are still suitable (primary bedroom on main floor).
+  // The API's singleStoryOnly filter is too strict and filters out these desirable properties.
+  const url = `https://api.hasdata.com/scrape/zillow/listing?keyword=${encodeURIComponent(location)}&type=${type}`;
 
   // Add 10-second timeout to prevent hanging
   const controller = new AbortController();
@@ -542,7 +584,12 @@ async function fetchFromHasData(location, type, priceTier, searchMode = 'singleS
 
   // DUAL API: Enrich with property details to get descriptions
   const enrichedProperties = [];
-  for (const prop of properties) {
+  console.log(`    📋 Enriching ${properties.length} properties with descriptions...`);
+
+  for (let i = 0; i < properties.length; i++) {
+    const prop = properties[i];
+    console.log(`      [${i + 1}/${properties.length}] Fetching details for ${prop.address?.street || prop.url}...`);
+
     const propertyDetails = await fetchZillowPropertyDetails(prop.url);
 
     if (propertyDetails && propertyDetails.description) {
@@ -583,6 +630,72 @@ async function main() {
   const uniqueZips = [...new Set(premiumZipCodes)];
   console.log(`   Using ${uniqueZips.length} unique ZIP codes\n`);
 
+  // Helper function to save a batch of listings
+  const saveBatch = async (batchListings, batchNumber) => {
+    console.log(`\n💾 Saving batch ${batchNumber} (${batchListings.length} properties)...`);
+
+    // Deduplicate batch
+    const propertyMap = new Map();
+    batchListings.forEach(prop => {
+      if (!propertyMap.has(prop.id)) {
+        propertyMap.set(prop.id, prop);
+      }
+    });
+    const uniqueBatch = Array.from(propertyMap.values());
+
+    // Transform and filter
+    const listings = uniqueBatch
+      .map(transformProperty)
+      .filter(Boolean);
+
+    console.log(`   ${listings.length} valid properties after filtering`);
+
+    if (listings.length === 0) {
+      console.log('   No properties to save in this batch');
+      return 0;
+    }
+
+    // Preserve user grades
+    const { data: existingGrades } = await supabase
+      .from('listings')
+      .select('id, my_grade')
+      .in('id', listings.map(l => l.id))
+      .not('my_grade', 'is', null);
+
+    const gradeMap = new Map();
+    if (existingGrades) {
+      existingGrades.forEach(row => {
+        if (row.my_grade) {
+          gradeMap.set(row.id, row.my_grade);
+        }
+      });
+    }
+
+    // Merge grades back
+    listings.forEach(listing => {
+      if (gradeMap.has(listing.id)) {
+        listing.my_grade = gradeMap.get(listing.id);
+      }
+    });
+
+    // Save to Supabase
+    const { error } = await supabase
+      .from('listings')
+      .upsert(listings, { onConflict: 'id' });
+
+    if (error) {
+      console.error('   ❌ Batch save error:', error);
+      return 0;
+    }
+
+    console.log(`   ✅ Successfully saved batch ${batchNumber}`);
+    return listings.length;
+  };
+
+  const BATCH_SIZE = 50;
+  let batchCounter = 0;
+  let totalSaved = 0;
+
   // Fetch Sale properties with price tiers by ZIP
   // Strategy: Make two passes - one for singleStoryOnly, one for Ranch properties
   console.log('  🏠 Pass 1: Searching for single-story properties...\n');
@@ -597,6 +710,14 @@ async function main() {
 
         if (properties.length >= 40) {
           console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
+        }
+
+        // Save batch if we've accumulated enough
+        if (allListings.length >= BATCH_SIZE) {
+          batchCounter++;
+          const saved = await saveBatch(allListings, batchCounter);
+          totalSaved += saved;
+          allListings.length = 0; // Clear array
         }
 
         // Rate limit: 300ms between requests (we have 200k credits)
@@ -621,6 +742,14 @@ async function main() {
           console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
         }
 
+        // Save batch if we've accumulated enough
+        if (allListings.length >= BATCH_SIZE) {
+          batchCounter++;
+          const saved = await saveBatch(allListings, batchCounter);
+          totalSaved += saved;
+          allListings.length = 0; // Clear array
+        }
+
         await new Promise(resolve => setTimeout(resolve, 300));
       } catch (error) {
         console.error(`    ❌ Error: ${error.message}`);
@@ -643,6 +772,14 @@ async function main() {
           console.log(`    ⚠️  Hit API limit (~40 results) - some listings may be missing in this tier`);
         }
 
+        // Save batch if we've accumulated enough
+        if (allListings.length >= BATCH_SIZE) {
+          batchCounter++;
+          const saved = await saveBatch(allListings, batchCounter);
+          totalSaved += saved;
+          allListings.length = 0; // Clear array
+        }
+
         // Rate limit: 500ms between requests for stability
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
@@ -660,64 +797,17 @@ async function main() {
   // DISABLED: Pass 4 - Redfin Sales
   // DISABLED: Pass 5 - Redfin Rentals
 
+  // Save any remaining listings in final batch
+  if (allListings.length > 0) {
+    batchCounter++;
+    const saved = await saveBatch(allListings, batchCounter);
+    totalSaved += saved;
+    allListings.length = 0;
+  }
+
   console.log(`\n✅ Total API calls made: ${totalAPICallsMade}`);
-  console.log(`✅ Total fetched (with duplicates): ${allListings.length} properties`);
-
-  // Deduplicate across Zillow + Redfin
-  const propertyMap = new Map();
-  allListings.forEach(prop => {
-    if (!propertyMap.has(prop.id)) {
-      propertyMap.set(prop.id, prop);
-    }
-  });
-
-  const uniqueProperties = Array.from(propertyMap.values());
-  console.log(`✅ After deduplication: ${uniqueProperties.length} unique properties`);
-
-  // Transform
-  const listings = uniqueProperties
-    .map(transformProperty)
-    .filter(Boolean);
-
-  console.log(`✅ ${listings.length} valid properties after filtering\n`);
-  console.log(`   ${uniqueProperties.length - listings.length} properties filtered out (pending/sold/invalid/multi-family)`);
-
-  // Preserve user grades before upserting
-  console.log('\n🔍 Fetching existing user grades...');
-  const { data: existingGrades } = await supabase
-    .from('listings')
-    .select('id, my_grade')
-    .not('my_grade', 'is', null);
-
-  const gradeMap = new Map();
-  if (existingGrades) {
-    existingGrades.forEach(row => {
-      if (row.my_grade) {
-        gradeMap.set(row.id, row.my_grade);
-      }
-    });
-    console.log(`✅ Found ${gradeMap.size} properties with existing grades`);
-  }
-
-  // Merge grades back into listings
-  listings.forEach(listing => {
-    if (gradeMap.has(listing.id)) {
-      listing.my_grade = gradeMap.get(listing.id);
-    }
-  });
-
-  // Save to Supabase
-  console.log('\n💾 Saving listings to Supabase...');
-  const { error } = await supabase
-    .from('listings')
-    .upsert(listings, { onConflict: 'id' });
-
-  if (error) {
-    console.error('❌ Supabase error:', error);
-    throw error;
-  }
-
-  console.log(`✅ Successfully saved ${listings.length} listings`);
+  console.log(`✅ Total batches saved: ${batchCounter}`);
+  console.log(`✅ Total properties saved to database: ${totalSaved}`);
 
   // Clean up old listings
   console.log('\n🧹 Cleaning up old listings...');
