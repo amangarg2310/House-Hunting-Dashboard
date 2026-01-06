@@ -87,8 +87,8 @@ export function useListings() {
         return false;
       }
 
-      // Single floor filter
-      if (filters.showSingleFloorOnly && !listing.isSingleFloor) {
+      // Single floor filter - allow master-on-main since they can live entirely on main floor
+      if (filters.showSingleFloorOnly && !listing.isSingleFloor && listing.propertyType !== 'master-on-main') {
         return false;
       }
 
