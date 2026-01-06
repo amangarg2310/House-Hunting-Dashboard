@@ -828,7 +828,8 @@ async function main() {
   }
 
   console.log('\n✅ Fetch complete!');
-  console.log(`   - New listings saved: ${listings.length}`);
+  console.log(`   - Total batches saved: ${batchCounter}`);
+  console.log(`   - Total properties saved: ${totalSaved}`);
   console.log(`   - Old listings deleted: ${deleted?.length || 0}`);
   console.log(`   - Completed at: ${new Date().toLocaleString()}`);
 }
