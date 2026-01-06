@@ -218,20 +218,21 @@ function transformProperty(prop) {
     }
 
   } else {
-    // No description available - use conservative API-only filtering
+    // No description available - use more lenient API-only filtering
     const stories = prop.resoFacts?.stories || null;
 
-    // STRICT filtering: Reject if API says multi-story (stories > 1)
-    if (stories !== null && stories > 1) {
-      return null;
-    }
-
-    // Reject all townhouses (no description to verify suitability)
+    // Reject townhouses (almost always multi-story)
     if (homeType.includes('TOWNHOUSE') || homeType.includes('TOWNHOME')) {
       return null;
     }
 
-    // Conservative: Without story data or description, only accept safe types
+    // Reject if API clearly says 3+ stories
+    if (stories !== null && stories >= 3) {
+      return null;
+    }
+
+    // For 2-story or unknown: ACCEPT (might have primary-on-main, can't verify)
+    // Better to include and let user filter than to exclude good properties
     if (stories === null) {
       const isSafeType = homeType.includes('CONDO') ||
                          homeType.includes('APARTMENT') ||
